@@ -1,0 +1,657 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Deadlock Meta Lab</title>
+<style>
+:root {
+  color-scheme: light;
+  --page: #f9f9f7; --surface: #fcfcfb; --ink: #0b0b0b; --ink-2: #52514e; --muted: #898781;
+  --grid: #e1e0d9; --axis: #c3c2b7; --border: rgba(11,11,11,0.10);
+  --pos: #2a78d6; --neg: #e34948; --mid: #f0efec; --accent: #2a78d6;
+  --good: #006300; --flag: #eda100; --chip: #eef3fb;
+  /* tier scale: diverging blue <- gray -> red, 3 validated steps per arm (S..F) */
+  --t6: #e2c522; --t6-ink: #0b0b0b;  --t5: #2a78d6; --t5-ink: #fff;  --t4: #86b6ef; --t4-ink: #0b0b0b;
+  --t3: #dcdbd4; --t3-ink: #0b0b0b; --t3-dot: #a8a79f;
+  --t2: #ee9796; --t2-ink: #0b0b0b; --t1: #e34948; --t1-ink: #fff;  --t0: #a8302f; --t0-ink: #fff;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --page: #0d0d0d; --surface: #1a1a19; --ink: #f0efec; --ink-2: #c3c2b7; --muted: #898781;
+    --grid: #2c2c2a; --axis: #383835; --border: rgba(255,255,255,0.10);
+    --pos: #3987e5; --neg: #e66767; --mid: #383835; --accent: #3987e5;
+    --good: #0ca30c; --flag: #c98500; --chip: #1d2733;
+    --t6: #e2c522; --t6-ink: #0b0b0b; --t5: #1c5cab; --t5-ink: #0b0b0b; --t4: #3987e5; --t4-ink: #fff;
+    --t3: #383835; --t3-ink: #f0efec; --t3-dot: #6b6a64;
+    --t2: #f2a8a7; --t2-ink: #0b0b0b;    --t1: #e66767; --t1-ink: #0b0b0b; --t0: #9b3332; --t0-ink: #fff;
+  }
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --page: #0d0d0d; --surface: #1a1a19; --ink: #f0efec; --ink-2: #c3c2b7; --muted: #898781;
+  --grid: #2c2c2a; --axis: #383835; --border: rgba(255,255,255,0.10);
+  --pos: #3987e5; --neg: #e66767; --mid: #383835; --accent: #3987e5;
+  --good: #0ca30c; --flag: #c98500; --chip: #1d2733;
+  --t6: #e2c522; --t6-ink: #0b0b0b; --t5: #1c5cab; --t5-ink: #0b0b0b; --t4: #3987e5; --t4-ink: #fff;
+  --t3: #383835; --t3-ink: #f0efec; --t3-dot: #6b6a64;
+  --t2: #f2a8a7; --t2-ink: #0b0b0b;    --t1: #e66767; --t1-ink: #0b0b0b; --t0: #9b3332; --t0-ink: #fff;
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--page); color: var(--ink);
+       font: 14px/1.45 system-ui, -apple-system, "Segoe UI", sans-serif; }
+.wrap { max-width: 1280px; margin: 0 auto; padding-inline: 20px; padding-block: 20px 60px; }
+header h1 { font-size: 22px; margin: 0 0 4px; letter-spacing: -0.01em; }
+.sub { color: var(--ink-2); font-size: 13px; }
+.controls { position: sticky; top: env(safe-area-inset-top, 0px); z-index: 5; background: var(--page);
+            display: flex; flex-wrap: wrap; gap: 10px 18px; align-items: center; padding: 12px 0; margin-top: 10px;
+            border-bottom: 1px solid var(--border); }
+.seg { display: inline-flex; border: 1px solid var(--border); border-radius: 8px; overflow: hidden; }
+.seg button { border: 0; background: var(--surface); color: var(--ink-2); padding: 6px 12px; font: inherit; cursor: pointer; }
+.seg button + button { border-left: 1px solid var(--border); }
+.seg button[aria-pressed="true"] { background: var(--accent); color: #fff; }
+label.chk { display: inline-flex; gap: 6px; align-items: center; color: var(--ink-2); cursor: pointer; }
+nav.tabs { display: flex; flex-wrap: wrap; gap: 4px; margin: 14px 0 16px; }
+nav.tabs button { border: 0; background: none; color: var(--ink-2); padding: 7px 12px; border-radius: 8px; font: inherit;
+                  cursor: pointer; }
+nav.tabs button[aria-selected="true"] { background: var(--chip); color: var(--ink); font-weight: 600; }
+section[hidden] { display: none !important; }
+section > .card + .card, section > .card + .grid2, section > .toolbar + .card { margin-top: 16px; }
+.card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 16px; min-width: 0; }
+.grid2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 520px), 1fr)); gap: 16px; }
+.card h2 { font-size: 15px; margin: 0 0 2px; }
+.card .why { color: var(--muted); font-size: 12.5px; margin: 0 0 10px; }
+.toolbar { display: flex; flex-wrap: wrap; gap: 8px 14px; align-items: center; margin-bottom: 10px; }
+.toolbar .grow { flex: 1; }
+.lbl { color: var(--ink-2); }
+select, input[type="search"], .combo input { font: inherit; color: var(--ink); background: var(--surface);
+  border: 1px solid var(--border); border-radius: 8px; padding: 5px 8px; }
+
+/* scrollable tables with a sticky header row */
+.tbl { overflow: auto; max-height: var(--tbl-h, min(70vh, 640px)); border-radius: 8px; overscroll-behavior: contain; }
+table { border-collapse: separate; border-spacing: 0; width: 100%; font-variant-numeric: tabular-nums; }
+th, td { padding: 6px 8px; text-align: right; white-space: nowrap; border-bottom: 1px solid var(--grid); }
+th { color: var(--muted); font-weight: 500; font-size: 12px; cursor: pointer; user-select: none;
+     position: sticky; top: 0; z-index: 2; background: var(--surface); border-bottom: 1px solid var(--axis); }
+th.sorted { color: var(--ink); }
+th:first-child, td:first-child, th.l, td.l { text-align: left; }
+tbody tr:hover td { background: var(--chip); }
+td.dim { color: var(--muted); }
+.compact th, .compact td { padding-inline: 5px; }
+.compact .flag { margin-left: 0; }
+.rowcount { color: var(--muted); font-size: 12px; margin-top: 6px; }
+
+.tier { display: inline-block; min-width: 22px; text-align: center; font-weight: 700; font-size: 11.5px; line-height: 18px;
+        border-radius: 5px; padding: 0 5px; }
+.tier.t6 { background: var(--t6); color: var(--t6-ink); } .tier.t5 { background: var(--t5); color: var(--t5-ink); }
+.tier.t4 { background: var(--t4); color: var(--t4-ink); } .tier.t3 { background: var(--t3); color: var(--t3-ink); }
+.tier.t2 { background: var(--t2); color: var(--t2-ink); } .tier.t1 { background: var(--t1); color: var(--t1-ink); }
+.tier.t0 { background: var(--t0); color: var(--t0-ink); }
+.legend { display: inline-flex; gap: 4px; align-items: center; color: var(--muted); font-size: 12px; }
+.legend .tier { min-width: 20px; }
+
+.bar { display: inline-grid; grid-template-columns: 40px 40px; align-items: center; vertical-align: middle; margin-right: 6px;
+       position: relative; }
+.bar span { height: 8px; }
+.bar .n { justify-self: end; border-radius: 4px 0 0 4px; background: var(--neg); }
+.bar .p { justify-self: start; border-radius: 0 4px 4px 0; background: var(--pos); }
+.bar::after { content: ""; position: absolute; left: 40px; top: -3px; bottom: -3px; width: 1px; background: var(--axis); }
+.flag { display: inline-block; font-size: 11px; padding: 1px 6px; border-radius: 99px; border: 1px solid var(--flag);
+        color: var(--ink); margin-left: 4px; }
+.flag::before { content: "▲ "; color: var(--flag); }
+.note { color: var(--muted); font-size: 12.5px; margin-top: 8px; }
+.empty { color: var(--muted); padding: 20px 0; }
+
+/* searchable dropdown */
+.combo { position: relative; display: inline-block; }
+.combo input { width: 220px; padding-right: 26px; cursor: pointer; }
+.combo input:focus { cursor: text; outline: 2px solid var(--accent); outline-offset: -1px; }
+.combo::after { content: "▾"; position: absolute; right: 9px; top: 50%; transform: translateY(-50%); color: var(--muted);
+                pointer-events: none; font-size: 12px; }
+.combo ul { position: absolute; z-index: 30; top: 100%; left: 0; min-width: 100%; max-height: 300px; overflow: auto;
+            margin: 4px 0 0; padding: 4px; list-style: none; background: var(--surface); border: 1px solid var(--border);
+            border-radius: 8px; box-shadow: 0 8px 24px rgba(0,0,0,.18); }
+.combo li { padding: 5px 9px; border-radius: 6px; cursor: pointer; white-space: nowrap; color: var(--ink); }
+.combo li[aria-selected="true"] { background: var(--chip); }
+.combo li.sep { border-bottom: 1px solid var(--grid); border-radius: 6px 6px 0 0; margin-bottom: 3px; }
+.combo li.none { color: var(--muted); cursor: default; }
+.combo li b { color: var(--accent); font-weight: 700; }
+
+svg text { fill: var(--ink-2); font: 11px system-ui, sans-serif; }
+svg text.pl { fill: var(--ink); paint-order: stroke; stroke: var(--surface); stroke-width: 3px; stroke-linejoin: round; }
+svg text.axt { fill: var(--muted); }
+.chart { position: relative; }
+#tip { position: fixed; pointer-events: none; background: var(--surface); color: var(--ink); border: 1px solid var(--border);
+       border-radius: 8px; padding: 6px 9px; font-size: 12.5px; box-shadow: 0 4px 16px rgba(0,0,0,.12); z-index: 40;
+       max-width: 320px; }
+.method p { max-width: 80ch; color: var(--ink-2); }
+.method b { color: var(--ink); }
+</style>
+</head>
+<body>
+<div class="wrap">
+<header>
+  <h1>Deadlock Meta Lab</h1>
+  <div class="sub" id="metaLine"></div>
+</header>
+
+<div class="controls">
+  <div class="seg" id="bracketSeg" role="group" aria-label="Rank bracket"></div>
+  <label class="chk"><input type="checkbox" id="rankedOnly"> Ranked only</label>
+  <label class="chk"><input type="checkbox" id="hideLow" checked> Hide low-sample rows</label>
+  <span class="sub" id="scopeCount"></span>
+</div>
+
+<nav class="tabs" role="tablist" id="tabs"></nav>
+
+<section id="tab-overview"></section>
+<section id="tab-heroes" hidden></section>
+<section id="tab-items" hidden></section>
+<section id="tab-counters" hidden></section>
+<section id="tab-fits" hidden></section>
+<section id="tab-matchups" hidden></section>
+<section id="tab-profiles" hidden></section>
+<section id="tab-method" hidden></section>
+</div>
+<div id="tip" hidden></div>
+
+<script>
+const PAYLOAD = /*__DATA__*/null;
+const META = PAYLOAD.meta, RAW = PAYLOAD.data;
+const cache = {};
+function rows(name) {
+  if (cache[name]) return cache[name];
+  const c = RAW[name]; if (!c) return (cache[name] = []);
+  // dictionary-encoded string columns: {d: [values], i: [indices]}
+  for (const k of Object.keys(c)) if (c[k] && c[k].d) { const d = c[k].d; c[k] = c[k].i.map(j => j < 0 ? null : d[j]); }
+  const keys = Object.keys(c), n = c[keys[0]].length, out = new Array(n);
+  for (let i = 0; i < n; i++) { const o = {}; for (const k of keys) o[k] = c[k][i]; out[i] = o; }
+  return (cache[name] = out);
+}
+const state = { bracket: META.focus_bracket || "All", ranked: false, hideLow: true, tab: "overview",
+                itemHero: "general", ctMode: "hero", labelAll: {} };
+// deep link: #tab or #tab/bracket (e.g. #counters/Emissary-Phantom)
+{ const [t, b] = decodeURIComponent(location.hash.slice(1)).split("/");
+  if (t) state.tab = t; if (b && (b === "All" || META.brackets.includes(b))) state.bracket = b; }
+const scopeName = () => (state.bracket === "All" ? "All" : state.bracket) + (state.ranked ? " | Ranked" : "");
+const inScope = name => rows(name).filter(r => r.scope === scopeName() && !(state.hideLow && r.low_sample));
+
+// ---------- formatting
+const pct = v => v == null ? "–" : (v * 100).toFixed(1) + "%";
+const pp = v => v == null ? "–" : (v > 0 ? "+" : "") + (v * 100).toFixed(1) + " pp";
+const num = (v, d = 0) => v == null ? "–" : Number(v).toLocaleString(undefined, { maximumFractionDigits: d, minimumFractionDigits: d });
+const ratio = v => v == null ? "–" : "×" + Number(v).toFixed(2);
+const qfmt = v => v == null ? "–" : v < 0.001 ? "<.001" : v.toFixed(3);
+const shop = v => v == null ? "–" : "T" + v;
+const esc = s => String(s ?? "").replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+
+function divBar(v, maxAbs, label) {
+  const w = maxAbs > 0 ? Math.min(40, Math.abs(v ?? 0) / maxAbs * 40) : 0;
+  return `<span class="bar"><span class="n" style="width:${v < 0 ? w : 0}px"></span><span class="p" style="width:${v > 0 ? w : 0}px"></span></span>${label}`;
+}
+
+// ---------- tiers: S..F from a value's distance to the median of its population, in SDs
+const TIER_LETTERS = ["F", "E", "D", "C", "B", "A", "S"];
+const TIER_CUTS = [1.5, 0.9, 0.3, -0.3, -0.9, -1.5];       // z >= cut -> S, A, B, C(>-0.3), D, E, else F
+function tierer(pop, get) {
+  const v = pop.map(get).filter(x => x != null && isFinite(x)).sort((a, b) => a - b);
+  if (v.length < 3) return () => null;
+  const med = v[Math.floor(v.length / 2)], mean = v.reduce((a, b) => a + b, 0) / v.length;
+  const sd = Math.sqrt(v.reduce((a, b) => a + (b - mean) ** 2, 0) / (v.length - 1)) || 1e-9;
+  return x => {
+    if (x == null || !isFinite(x)) return null;
+    const z = (x - med) / sd;
+    if (z >= TIER_CUTS[0]) return 6; if (z >= TIER_CUTS[1]) return 5; if (z >= TIER_CUTS[2]) return 4;
+    if (z > TIER_CUTS[3]) return 3; if (z > TIER_CUTS[4]) return 2; if (z > TIER_CUTS[5]) return 1; return 0;
+  };
+}
+// annotate rows with _t (6 = S ... 0 = F), tiered against `pop` (defaults to the rows themselves)
+const withTiers = (data, get, pop = data) => { const t = tierer(pop, get); return data.map(r => ({ ...r, _t: t(get(r)) })); };
+const badge = t => t == null ? "–" : `<span class="tier t${t}" title="Tier ${TIER_LETTERS[t]}">${TIER_LETTERS[t]}</span>`;
+const TIER_COL = (what) => ({ key: "_t", label: "Tier", l: 1, fmt: badge,
+  tip: `Relative tier by ${what} within this list: S ≥ +1.5 SD from the median, A ≥ +0.9, B ≥ +0.3, C within ±0.3, D, E, F mirror below` });
+const tierLegend = () => `<span class="legend" title="Relative tiers: distance from the median of this view, in standard deviations">Tier ${
+  [6, 5, 4, 3, 2, 1, 0].map(badge).join("")}</span>`;
+
+// ---------- generic sortable table (scrolls inside its card; header row stays visible)
+function table(el, data, cols, opts = {}) {
+  const st = el._sort || { key: opts.sort, desc: opts.desc !== false };
+  el._sort = st;
+  const maxAbs = {};
+  for (const c of cols) if (c.bar) maxAbs[c.key] = Math.max(1e-9, ...data.map(r => Math.abs(r[c.key] ?? 0)));
+  const sorted = [...data].sort((a, b) => {
+    const x = a[st.key], y = b[st.key];
+    if (x == null && y == null) return 0; if (x == null) return 1; if (y == null) return -1;
+    return (typeof x === "string" ? x.localeCompare(y) : x - y) * (st.desc ? -1 : 1);
+  });
+  const shown = sorted.slice(0, opts.limit || 1000);
+  if (!shown.length) { el.innerHTML = `<div class="empty">No rows in this scope${state.hideLow ? " (try showing low-sample rows)" : ""}.</div>`; return; }
+  const th = cols.map(c => `<th class="${c.l ? "l" : ""} ${st.key === c.key ? "sorted" : ""}" data-k="${c.key}" title="${esc(c.tip || "")}">${esc(c.label)}${st.key === c.key ? (st.desc ? " ↓" : " ↑") : ""}</th>`).join("");
+  const tr = shown.map(r => "<tr>" + cols.map(c => {
+    const v = r[c.key]; let html = c.fmt ? c.fmt(v, r) : esc(v);
+    if (c.bar) html = divBar(v, maxAbs[c.key], html);
+    return `<td class="${c.l ? "l" : ""} ${c.dim && c.dim(r) ? "dim" : ""}">${html}</td>`;
+  }).join("") + "</tr>").join("");
+  const h = opts.height ? ` style="--tbl-h:${opts.height}"` : "";
+  el.innerHTML = `<div class="tbl"${h}><table><thead><tr>${th}</tr></thead><tbody>${tr}</tbody></table></div>` +
+    `<div class="rowcount">${num(shown.length)} row${shown.length === 1 ? "" : "s"}${sorted.length > shown.length ? ` of ${num(sorted.length)}` : ""}</div>`;
+  el.querySelectorAll("th").forEach(h => h.onclick = () => {
+    const k = h.dataset.k; if (st.key === k) st.desc = !st.desc; else { st.key = k; st.desc = true; }
+    table(el, data, cols, opts);
+  });
+}
+
+// ---------- searchable dropdown. options: [{v, label, sep?}]. Matches the start of any word of the
+// label ("mi" -> Mina, Mirage; "dan" -> Deadman Danny); several words must each match.
+const words = s => String(s).toLowerCase().split(/[^a-z0-9]+/).filter(Boolean);
+function combo(host, options, value, onChange, { width, label } = {}) {
+  host.innerHTML = `<div class="combo"><input type="text" role="combobox" aria-autocomplete="list" aria-expanded="false"
+    autocomplete="off" spellcheck="false" aria-label="${esc(label || "Search")}" ${width ? `style="width:${width}"` : ""}><ul role="listbox" hidden></ul></div>`;
+  const inp = host.querySelector("input"), ul = host.querySelector("ul");
+  const cur = () => options.find(o => String(o.v) === String(value));
+  let shown = [], hi = 0;
+  const match = (o, qs) => { if (!qs.length) return true; const w = words(o.label); return qs.every(t => w.some(x => x.startsWith(t))); };
+  const mark = (lab, qs) => { let s = esc(lab); for (const t of qs) s = s.replace(new RegExp(`(^|[^a-z0-9])(${t})`, "ig"), "$1<b>$2</b>"); return s; };
+  const update = () => { ul.querySelectorAll("li[data-i]").forEach(li => li.setAttribute("aria-selected", +li.dataset.i === hi));
+    ul.querySelector(`li[data-i="${hi}"]`)?.scrollIntoView({ block: "nearest" }); };
+  const draw = q => {
+    const qs = words(q); shown = options.filter(o => match(o, qs));
+    hi = qs.length ? 0 : Math.max(0, shown.findIndex(o => String(o.v) === String(value)));
+    ul.innerHTML = shown.length ? shown.map((o, i) => `<li role="option" data-i="${i}" class="${o.sep && !qs.length ? "sep" : ""}">${mark(o.label, qs)}</li>`).join("")
+                                : `<li class="none">No match</li>`;
+    ul.hidden = false; inp.setAttribute("aria-expanded", "true"); update();
+  };
+  const close = () => { ul.hidden = true; inp.setAttribute("aria-expanded", "false"); inp.value = cur()?.label ?? ""; };
+  const pick = i => { const o = shown[i]; if (!o) return; value = o.v; close(); inp.blur(); onChange(o.v); };
+  inp.value = cur()?.label ?? "";
+  inp.onfocus = () => { inp.select(); draw(""); };
+  inp.oninput = () => draw(inp.value);
+  inp.onblur = close;
+  inp.onkeydown = e => {
+    if (e.key === "ArrowDown") { hi = Math.min(shown.length - 1, hi + 1); update(); e.preventDefault(); }
+    else if (e.key === "ArrowUp") { hi = Math.max(0, hi - 1); update(); e.preventDefault(); }
+    else if (e.key === "Enter") { pick(hi); e.preventDefault(); }
+    else if (e.key === "Escape") { inp.blur(); }
+  };
+  ul.onmousedown = e => { e.preventDefault(); const li = e.target.closest("li[data-i]"); if (li) pick(+li.dataset.i); };
+}
+function heroList() {
+  return [...new Map(rows("hero_stats").map(r => [r.hero_id, r.hero])).entries()]
+    .sort((a, b) => String(a[1]).localeCompare(b[1])).map(([v, label]) => ({ v, label }));
+}
+const firstHero = () => heroList()[0]?.v;
+
+// ---------- scatter with tier-colored points, collision-avoiding labels and hover tooltips
+function niceTicks(a, b, n) {
+  const span = b - a || 1, raw = span / n, p = 10 ** Math.floor(Math.log10(raw));
+  const step = [1, 2, 2.5, 5, 10].map(m => m * p).find(s => s >= raw);
+  const out = []; for (let v = Math.ceil(a / step) * step; v <= b + 1e-12; v += step) out.push(+v.toFixed(10));
+  return out;
+}
+function scatterPlot(el, data, o) {
+  if (!data.length) { el.innerHTML = '<div class="empty">No data in this view.</div>'; return; }
+  const W = Math.max(320, el.clientWidth || 900), H = o.height || 400, m = { l: 56, r: 20, t: 18, b: 40 };
+  const xs = data.map(o.x), ys = data.map(o.y);
+  let x0 = Math.min(...xs), x1 = Math.max(...xs); const xp = (x1 - x0) * 0.05 || 1; x0 = o.xZero ? 0 : x0 - xp; x1 += xp;
+  let y0 = Math.min(...ys, o.ref ?? Infinity), y1 = Math.max(...ys, o.ref ?? -Infinity); const yp = (y1 - y0) * 0.08 || 0.01; y0 -= yp; y1 += yp;
+  const X = v => m.l + (v - x0) / (x1 - x0) * (W - m.l - m.r), Y = v => H - m.b - (v - y0) / (y1 - y0) * (H - m.t - m.b);
+  let s = `<svg width="100%" viewBox="0 0 ${W} ${H}" role="img" aria-label="${esc(o.yTitle)} against ${esc(o.xTitle)}">`;
+  for (const t of niceTicks(y0, y1, 6)) s += `<line x1="${m.l}" x2="${W - m.r}" y1="${Y(t)}" y2="${Y(t)}" stroke="var(--grid)"/><text x="${m.l - 6}" y="${Y(t) + 4}" text-anchor="end">${o.yTick(t)}</text>`;
+  for (const t of niceTicks(x0, x1, Math.max(4, Math.round(W / 110)))) s += `<line x1="${X(t)}" x2="${X(t)}" y1="${m.t}" y2="${H - m.b}" stroke="var(--grid)" stroke-dasharray="2 4"/><text x="${X(t)}" y="${H - m.b + 16}" text-anchor="middle">${o.xTick(t)}</text>`;
+  if (o.ref != null) s += `<line x1="${m.l}" x2="${W - m.r}" y1="${Y(o.ref)}" y2="${Y(o.ref)}" stroke="var(--axis)" stroke-width="1.5"/>`;
+  s += `<text class="axt" x="${W - m.r}" y="${H - 6}" text-anchor="end">${esc(o.xTitle)} →</text><text class="axt" x="${m.l}" y="${m.t - 6}">↑ ${esc(o.yTitle)}</text>`;
+  const pts = data.map((d, i) => ({ d, i, px: X(o.x(d)), py: Y(o.y(d)), r: o.r ? o.r(d) : 5, t: o.tier(d) }));
+  // big points first so small ones stay visible on top
+  for (const p of [...pts].sort((a, b) => b.r - a.r))
+    s += `<circle cx="${p.px}" cy="${p.py}" r="${p.r}" fill="${p.t == null ? "var(--t3-dot)" : p.t === 3 ? "var(--t3-dot)" : `var(--t${p.t})`}" stroke="var(--surface)" stroke-width="2"/>`;
+  // labels: notable first (by distance from the middle), greedy placement around each point
+  const labelAll = !!o.labelAll, boxes = [];
+  const ov = (a, b) => a.x1 > b.x0 && a.x0 < b.x1 && a.y1 > b.y0 && a.y0 < b.y1;
+  const obst = pts.map(p => ({ x0: p.px - p.r, x1: p.px + p.r, y0: p.py - p.r, y1: p.py + p.r, i: p.i }));
+  const mid = (Math.min(...ys) + Math.max(...ys)) / 2;
+  const cand = pts.filter(p => labelAll || o.notable(p.d))
+    .sort((a, b) => (o.notable(b.d) - o.notable(a.d)) || Math.abs(o.y(b.d) - mid) - Math.abs(o.y(a.d) - mid));
+  // candidate spots in rings around the point; outer rings get a leader line
+  const rings = labelAll ? [0, 14, 28, 44] : [0, 14];
+  let leaders = "", texts = "";
+  for (const p of cand) {
+    const txt = String(o.label(p.d)), w = txt.length * 6.1 + 2;
+    let best = null, bestScore = Infinity;
+    for (const [k, e] of rings.entries()) {
+      const r = p.r + e;
+      const opts = [[r + 4, 4, "start"], [-(r + 4), 4, "end"], [0, -(r + 5), "middle"], [0, r + 13, "middle"],
+                    [r + 2, -(r + 2), "start"], [r + 2, r + 11, "start"], [-(r + 2), -(r + 2), "end"], [-(r + 2), r + 11, "end"]];
+      for (const [dx, dy, a] of opts) {
+        const x = p.px + dx, y = p.py + dy, bx0 = a === "start" ? x : a === "end" ? x - w : x - w / 2;
+        const b = { x0: bx0, x1: bx0 + w, y0: y - 9, y1: y + 3 };
+        if (b.x0 < m.l - 4 || b.x1 > W - 2 || b.y0 < m.t - 2 || b.y1 > H - m.b + 2) continue;
+        const score = boxes.filter(q => ov(q, b)).length * 3 + obst.filter(q => q.i !== p.i && ov(q, b)).length + k * 0.5;
+        if (score < bestScore) { bestScore = score; best = { x, y, a, b, k }; }
+      }
+      if (bestScore < 1) break;          // free spot found in this ring
+    }
+    if (!best || (!labelAll && bestScore >= 3)) continue;
+    boxes.push(best.b);
+    if (best.k > 0) {                    // leader from the point's edge to the label box's nearest corner
+      const lx = Math.min(Math.max(p.px, best.b.x0), best.b.x1), ly = Math.min(Math.max(p.py, best.b.y0), best.b.y1);
+      const dd = Math.hypot(lx - p.px, ly - p.py) || 1;
+      leaders += `<line x1="${p.px + (lx - p.px) / dd * p.r}" y1="${p.py + (ly - p.py) / dd * p.r}" x2="${lx}" y2="${ly}" stroke="var(--axis)" stroke-width="1"/>`;
+    }
+    texts += `<text class="pl" x="${best.x}" y="${best.y}" text-anchor="${best.a}">${esc(txt)}</text>`;
+  }
+  s += leaders + texts;
+  for (const p of pts) s += `<circle cx="${p.px}" cy="${p.py}" r="${Math.max(10, p.r + 4)}" fill="transparent" data-i="${p.i}"/>`;
+  el.innerHTML = `<div class="chart">${s}</svg></div>`;
+  const tip = document.getElementById("tip");
+  el.querySelectorAll("circle[data-i]").forEach(c => {
+    c.onmousemove = e => { const d = data[c.dataset.i]; tip.hidden = false; tip.innerHTML = o.tip(d);
+      const tw = tip.offsetWidth, th = tip.offsetHeight;
+      tip.style.left = (e.clientX + 14 + tw > innerWidth ? e.clientX - tw - 12 : e.clientX + 14) + "px";
+      tip.style.top = (e.clientY + 14 + th > innerHeight ? e.clientY - th - 12 : e.clientY + 14) + "px"; };
+    c.onmouseleave = () => tip.hidden = true;
+  });
+}
+const labelToggle = (key, what) =>
+  `<label class="chk"><input type="checkbox" data-label="${key}" ${state.labelAll[key] ? "checked" : ""}> Label all ${what}</label>`;
+function bindLabelToggle(el, key, redraw) {
+  const cb = el.querySelector(`input[data-label="${key}"]`);
+  cb.onchange = () => { state.labelAll[key] = cb.checked; redraw(); };
+}
+const ppTick = t => (t > 0 ? "+" : "") + Number((t * 100).toFixed(2));
+const minTick = t => Number(t.toFixed(1)) + "m";
+const pctTick = t => Number((t * 100).toFixed(1)) + "%";
+const sizeBy = (data, get) => { const mx = Math.max(1, ...data.map(get)); return d => 3 + 6 * Math.sqrt((get(d) || 0) / mx); };
+// notable = the n highest and k lowest by y
+function notableSet(data, gy, n = 7, k = 4) {
+  const srt = [...data].sort((a, b) => gy(b) - gy(a));
+  return new Set([...srt.slice(0, n), ...srt.slice(-k)]);
+}
+
+const flags = r => (r.underused_proven ? '<span class="flag" title="Clearly positive on this hero, but rarely bought">proven</span>' : "") +
+  (r.underused_predicted && !r.underused_proven ? '<span class="flag" title="Heroes with a similar profile benefit; rarely bought on this hero">predicted</span>' : "");
+
+// ---------- tabs
+const TABS = [["overview", "Overview"], ["heroes", "Heroes"], ["items", "Items"], ["counters", "Item counters"],
+              ["fits", "Hero × Item"], ["matchups", "Hero matchups"], ["profiles", "Playstyle profiles"], ["method", "Method"]];
+const tabsEl = document.getElementById("tabs");
+tabsEl.innerHTML = TABS.map(([k, l]) => `<button role="tab" data-t="${k}" aria-selected="${k === state.tab}">${l}</button>`).join("");
+tabsEl.onclick = e => { const b = e.target.closest("button"); if (!b) return; state.tab = b.dataset.t; render(); };
+
+const seg = document.getElementById("bracketSeg");
+seg.innerHTML = ["All", ...META.brackets].map(b => `<button data-b="${esc(b)}" aria-pressed="${b === state.bracket}">${esc(b === "All" ? "All ranks" : b)}</button>`).join("");
+seg.onclick = e => { const b = e.target.closest("button"); if (!b) return; state.bracket = b.dataset.b; render(); };
+document.getElementById("rankedOnly").onchange = e => { state.ranked = e.target.checked; render(); };
+document.getElementById("hideLow").onchange = e => { state.hideLow = e.target.checked; render(); };
+
+document.getElementById("metaLine").textContent =
+  `Patch window ${META.patch_start} → ${META.last_match} UTC · ${num(META.in_scope)} matches in scope (${num(META.ranked)} ranked of ${num(META.matches)}) · game build ${META.game_version} · generated ${META.generated}`;
+
+// ---------- sections
+function renderOverview(el) {
+  el.innerHTML = `<div class="grid2 compact">
+    <div class="card"><h2>Generally strong items</h2><p class="why">State-adjusted effect vs the average item of the same shop tier; positive on most heroes that buy it.</p><div id="ov1"></div></div>
+    <div class="card"><h2>Hard counters</h2><p class="why">Item is worth more when this enemy is present <i>and</i> holders kill that enemy disproportionately often.</p><div id="ov2"></div></div>
+    <div class="card"><h2>Underused hero fits</h2><p class="why">Strong on a hero (proven, or predicted from similar playstyles) but rarely bought there.</p><div id="ov3"></div></div>
+    <div class="card"><h2>Hero strength</h2><p class="why">Draft-model win rate vs an average hero, adjusted for skill and teammates.</p><div id="ov4"></div></div>
+  </div>`;
+  const H = "440px";
+  const allItems = inScope("item_effects");
+  const ie = withTiers(allItems, r => r.effect).filter(r => r.q_value < 0.05 && (r.heroes_positive ?? 0) >= 0.6);
+  table(el.querySelector("#ov1"), ie, [
+    TIER_COL("item effect (all items)"), { key: "name", label: "Item", l: 1 }, { key: "tier", label: "Shop", fmt: shop },
+    { key: "effect", label: "Effect", fmt: pp, bar: 1 }, { key: "heroes_positive", label: "Heroes +", fmt: pct, tip: "Share of heroes (with enough purchases) where the shrunk effect is positive" },
+    { key: "n", label: "Buys", fmt: v => num(v) }], { sort: "effect", height: H });
+
+  const allC = inScope("item_counters");
+  const hc = withTiers(allC, r => r.delta_shrunk)
+    .filter(r => r.off_lor != null && r.delta_shrunk > 0 && r.off_lor > 0 && r.q_value < 0.1)
+    .map(r => ({ ...r, kor: Math.exp(r.off_lor), score: r.delta_shrunk / (r.delta_shrunk_sd || 1) + r.off_lor / (r.off_lor_sd || 1) }));
+  table(el.querySelector("#ov2"), hc, [
+    TIER_COL("extra effect (all item × enemy pairs)"), { key: "item", label: "Item", l: 1 }, { key: "enemy", label: "vs", l: 1 },
+    { key: "delta_shrunk", label: "Extra effect", fmt: pp, bar: 1 }, { key: "kor", label: "Kill odds", fmt: ratio, tip: "Odds that a kill by a holder is on this hero, vs non-holders (same match & time)" },
+    { key: "score", label: "Score", fmt: v => num(v, 1), tip: "Sum of the two z-scores" }], { sort: "score", height: H });
+
+  const allF = inScope("hero_item_fit");
+  const fits = withTiers(allF, r => r.effect_shrunk).filter(r => r.underused_proven || r.underused_predicted);
+  table(el.querySelector("#ov3"), fits, [
+    TIER_COL("effect on hero (all hero × item pairs)"), { key: "hero", label: "Hero", l: 1 }, { key: "name", label: "Item", l: 1 },
+    { key: "effect_shrunk", label: "Effect on hero", fmt: pp, bar: 1 }, { key: "buy_rate", label: "Bought", fmt: pct },
+    { key: "underused_proven", label: "Underused", l: 1, fmt: (v, r) => flags(r) }], { sort: "effect_shrunk", height: H });
+
+  const str = withTiers(inScope("hero_strength"), r => r.adj_win_rate);
+  table(el.querySelector("#ov4"), str, [
+    TIER_COL("adjusted win rate"), { key: "hero", label: "Hero", l: 1 }, { key: "adj_win_rate", label: "Adj. win rate", fmt: pct },
+    { key: "strength_logit", label: "Strength", fmt: v => num(v, 3), bar: 1 }], { sort: "adj_win_rate", height: H });
+}
+
+function renderHeroes(el) {
+  const hs = inScope("hero_stats"), str = new Map(inScope("hero_strength").map(r => [r.hero_id, r]));
+  const data = withTiers(hs.map(r => ({ ...r, ...(str.get(r.hero_id) || {}) })), r => r.adj_win_rate);
+  el.innerHTML = `<div class="card"><h2>Strength vs popularity</h2><p class="why">Adjusted win rate (draft model) against pick rate. Upper-left = strong but under-picked.</p>
+      <div class="toolbar">${labelToggle("heroes", "heroes")}<span class="grow"></span>${tierLegend()}</div><div id="hsc"></div></div>
+    <div class="card"><h2>All heroes</h2><div id="htb"></div>
+    <p class="note">Adj. WR controls for teammates, opponents, skill difference, side and mode. Raw WR does not. Length columns show raw WR by match duration (early vs late-game heroes).</p></div>`;
+  const pd = data.filter(d => d.adj_win_rate != null && d.pick_rate != null);
+  const nset = notableSet(pd, d => d.adj_win_rate, 5, 3);
+  const draw = () => scatterPlot(el.querySelector("#hsc"), pd, {
+    x: d => d.pick_rate, y: d => d.adj_win_rate, label: d => d.hero, tier: d => d._t, ref: 0.5, xZero: true,
+    xTick: pctTick, yTick: pctTick, xTitle: "Pick rate", yTitle: "Adj. win rate",
+    notable: d => nset.has(d), labelAll: state.labelAll.heroes,
+    tip: d => `${badge(d._t)} <b>${esc(d.hero)}</b><br>Adj. WR ${pct(d.adj_win_rate)} · Raw ${pct(d.win_rate)}<br>Pick ${pct(d.pick_rate)} · Ban ${pct(d.ban_rate)} · ${num(d.games)} games` });
+  bindLabelToggle(el, "heroes", draw); draw();
+  table(el.querySelector("#htb"), data, [
+    TIER_COL("adjusted win rate"), { key: "hero", label: "Hero", l: 1 }, { key: "games", label: "Games", fmt: v => num(v) },
+    { key: "pick_rate", label: "Pick", fmt: pct }, { key: "ban_rate", label: "Ban", fmt: pct },
+    { key: "win_rate", label: "Raw WR", fmt: pct }, { key: "adj_win_rate", label: "Adj. WR", fmt: (v, r) => `${pct(v)} <span class="sub">±${pct((r.adj_wr_hi - r.adj_wr_lo) / 2)}</span>` },
+    { key: "strength_logit", label: "Strength", fmt: v => num(v, 3), bar: 1 },
+    { key: "wr_<25m", label: "<25m", fmt: pct }, { key: "wr_25-35m", label: "25–35m", fmt: pct },
+    { key: "wr_35-45m", label: "35–45m", fmt: pct }, { key: "wr_45m+", label: "45m+", fmt: pct },
+    { key: "souls_per_min", label: "Souls/min", fmt: v => num(v) },
+    { key: "kills", label: "K/D/A", fmt: (v, r) => `${num(r.kills, 1)} / ${num(r.deaths, 1)} / ${num(r.assists, 1)}` }], { sort: "adj_win_rate" });
+}
+
+// ---------- shared item filter bar (search by word prefix, slot type, shop tier); state kept per tab
+const SLOT_TYPES = ["Weapon", "Spirit", "Health"];
+const SHOP_TIERS = [[1, "T1 · 800"], [2, "T2 · 1600"], [3, "T3 · 3200"], [4, "T4 · 6400"]];
+const filterState = tab => (state.filters ??= {})[tab] ??= { q: "", slot: "", tier: "" };
+function itemFilterBar(tab) {
+  const f = filterState(tab);
+  return `<input type="search" data-f="q" placeholder="Search item…" aria-label="Search item" value="${esc(f.q)}">
+    <select data-f="slot" aria-label="Slot type"><option value="">All slot types</option>${SLOT_TYPES.map(s => `<option ${f.slot === s ? "selected" : ""}>${s}</option>`).join("")}</select>
+    <select data-f="tier" aria-label="Shop tier"><option value="">All shop tiers</option>${SHOP_TIERS.map(([v, l]) => `<option value="${v}" ${String(f.tier) === String(v) ? "selected" : ""}>${l}</option>`).join("")}</select>`;
+}
+// wires the bar's inputs to state and `redraw`; returns the current row predicate (rows need name|item, slot, tier)
+function bindItemFilter(el, tab, redraw) {
+  const f = filterState(tab);
+  el.querySelectorAll("[data-f]").forEach(i => i.oninput = () => { f[i.dataset.f] = i.value; redraw(); });
+  return () => {
+    const qs = words(f.q);
+    return r => (!qs.length || qs.every(t => words(r.name ?? r.item ?? "").some(w => w.startsWith(t))))
+      && (!f.slot || r.slot === f.slot) && (!f.tier || String(r.tier) === String(f.tier));
+  };
+}
+
+function renderItems(el) {
+  const heroOpts = [{ v: "general", label: "General (all heroes)", sep: 1 }, ...heroList()];
+  el.innerHTML = `<div class="toolbar"><span class="lbl">Buyer</span><span id="ih"></span>${itemFilterBar("items")}</div>
+    <div class="card"><h2 id="ich">Item value vs purchase time</h2><p class="why" id="icw"></p>
+      <div class="toolbar">${labelToggle("items", "items")}<span class="sub">Point size = purchases</span><span class="grow"></span>${tierLegend()}</div><div id="isc"></div></div>
+    <div class="card"><h2 id="ith">Item effects</h2><div id="itb"></div><p class="note" id="itn"></p></div>`;
+  combo(el.querySelector("#ih"), heroOpts, state.itemHero, v => { state.itemHero = v; renderItems(el); }, { label: "Buyer hero" });
+  const general = state.itemHero === "general";
+  const heroName = general ? null : heroList().find(h => String(h.v) === String(state.itemHero))?.label;
+  const draw = () => {
+    const keep = filter();
+    const slotOf = new Map(rows("item_effects").map(r => [r.item_id, r.slot]));
+    let pop, gy;
+    if (general) { pop = inScope("item_effects"); gy = r => r.effect; }
+    else { pop = inScope("hero_item_fit").filter(r => String(r.hero_id) === String(state.itemHero)).map(r => ({ ...r, slot: slotOf.get(r.item_id) })); gy = r => r.effect_shrunk; }
+    const all = withTiers(pop, gy), data = all.filter(keep);
+    el.querySelector("#ich").textContent = general ? "Item value vs purchase time — all heroes" : `Item value vs purchase time — ${heroName}`;
+    el.querySelector("#icw").textContent = general
+      ? "Each item's state-adjusted effect (all buyers) against the median minute it is bought. Above the line = better than other items of its shop tier bought at the same time."
+      : `Effect when bought on ${heroName} (shrunk toward the item's average when the sample is small) against the median minute ${heroName} players buy it.`;
+    const pts = data.filter(d => d.median_buy_min != null && gy(d) != null);
+    const nset = notableSet(pts, gy);
+    const plot = () => scatterPlot(el.querySelector("#isc"), pts, {
+      x: d => d.median_buy_min, y: gy, label: d => d.name, tier: d => d._t, ref: 0, r: sizeBy(pts, d => d.n),
+      xTick: minTick, yTick: ppTick, xTitle: "Typical purchase time (median minute)", yTitle: general ? "Item effect, pp" : `Effect on ${heroName}, pp`,
+      notable: d => nset.has(d), labelAll: state.labelAll.items, height: state.labelAll.items ? 640 : 440,
+      tip: d => `${badge(d._t)} <b>${esc(d.name)}</b> · ${shop(d.tier)} ${esc(d.slot || "")}<br>Effect ${pp(gy(d))} · bought ~${num(d.median_buy_min, 1)} min<br>${num(d.n)} purchases${general ? ` · helps ${pct(d.heroes_positive)} of heroes` : ` · ${pct(d.buy_rate)} of ${esc(heroName)} players`}` });
+    bindLabelToggle(el, "items", plot); plot();
+    if (general) {
+      el.querySelector("#ith").textContent = "Item effects — all heroes";
+      el.querySelector("#itn").textContent = "Breadth = share of heroes (with enough purchases) on which the item's shrunk effect is positive. Sold / Upgraded = how often the item leaves the inventory by sale or by being built into a higher item.";
+      table(el.querySelector("#itb"), data, [
+        TIER_COL("effect (all items)"), { key: "name", label: "Item", l: 1 }, { key: "slot", label: "Slot type", l: 1 }, { key: "tier", label: "Shop", fmt: shop },
+        { key: "n", label: "Buys", fmt: v => num(v) }, { key: "raw_win_rate", label: "Raw WR", fmt: pct },
+        { key: "expected_win_rate", label: "Expected", fmt: pct, tip: "Win rate the state model predicted at purchase" },
+        { key: "effect", label: "Effect", fmt: (v, r) => `${pp(v)} <span class="sub">±${(1.96 * r.effect_se * 100).toFixed(1)}</span>`, bar: 1 },
+        { key: "effect_per_1k_souls", label: "per 1k souls", fmt: pp },
+        { key: "heroes_positive", label: "Breadth", fmt: pct }, { key: "median_buy_min", label: "Buy min", fmt: v => num(v, 1) },
+        { key: "sold_rate", label: "Sold", fmt: pct }, { key: "upgraded_rate", label: "Upgraded", fmt: pct },
+        { key: "q_value", label: "q", fmt: qfmt, tip: "FDR-adjusted p-value" }], { sort: "effect" });
+    } else {
+      el.querySelector("#ith").textContent = `Item effects on ${heroName}`;
+      el.querySelector("#itn").textContent = "Hero-specific = effect on this hero minus the item's average effect. See the Hero × Item tab for profile-predicted fits.";
+      table(el.querySelector("#itb"), data, [
+        TIER_COL(`effect on ${heroName}`), { key: "name", label: "Item", l: 1 }, { key: "slot", label: "Slot type", l: 1 }, { key: "tier", label: "Shop", fmt: shop },
+        { key: "n", label: "Buys", fmt: v => num(v) }, { key: "buy_rate", label: "Bought", fmt: pct },
+        { key: "effect_shrunk", label: "Effect on hero", fmt: pp, bar: 1 }, { key: "hero_specific", label: "Hero-specific", fmt: pp, bar: 1 },
+        { key: "median_buy_min", label: "Buy min", fmt: v => num(v, 1) }, { key: "underused_proven", label: "Underused", l: 1, fmt: (v, r) => flags(r) }],
+        { sort: "effect_shrunk" });
+    }
+  };
+  const filter = bindItemFilter(el, "items", draw); draw();
+}
+
+function renderCounters(el) {
+  const sel = state.counterHero ?? firstHero();
+  const name = heroList().find(h => String(h.v) === String(sel))?.label ?? "";
+  el.innerHTML = `<div class="toolbar"><span class="lbl">Enemy hero</span><span id="ch"></span>${itemFilterBar("counters")}</div>
+    <div class="card"><h2 id="cch"></h2><p class="why" id="ccw"></p>
+      <div class="toolbar"><div class="seg" id="cmode" role="group" aria-label="Chart mode">
+        <button data-m="hero" aria-pressed="${state.ctMode === "hero"}">Against ${esc(name)}</button>
+        <button data-m="general" aria-pressed="${state.ctMode === "general"}">General (all enemies)</button></div>
+        ${labelToggle("counters", "items")}<span class="sub">Point size = purchases</span><span class="grow"></span>${tierLegend()}</div><div id="csc"></div></div>
+    <div class="card"><h2>What counters ${esc(name)}?</h2><p class="why">Items ranked by how much more they are worth when ${esc(name)} is on the enemy team, with the kill-share check.</p><div id="ctb"></div>
+    <p class="note">Kill odds: among kills by holders vs non-holders on the same side, same match and 5-minute window, the odds the victim is this hero (×1 = no preference). Protection: among deaths of holders vs non-holders, the odds the killer is this hero (below ×1 = the item protects against them).</p></div>`;
+  combo(el.querySelector("#ch"), heroList(), sel, v => { state.counterHero = v; renderCounters(el); }, { label: "Enemy hero" });
+  el.querySelector("#cmode").onclick = e => { const b = e.target.closest("button"); if (!b) return; state.ctMode = b.dataset.m; renderCounters(el); };
+  const hid = Number(sel);
+  const ie = new Map(inScope("item_effects").map(r => [r.item_id, r]));
+  const d = withTiers(inScope("item_counters").filter(r => r.enemy_hero === hid).map(r => ({
+    ...r, kor: r.off_lor != null ? Math.exp(r.off_lor) : null, dor: r.def_lor != null ? Math.exp(r.def_lor) : null,
+    median_buy_min: ie.get(r.item_id)?.median_buy_min, slot: ie.get(r.item_id)?.slot })), r => r.delta_shrunk);
+
+  const general = state.ctMode === "general";
+  el.querySelector("#cch").textContent = general ? "Item value vs purchase time — general" : `Item value vs purchase time — against ${name}`;
+  el.querySelector("#ccw").textContent = general
+    ? "Each item's state-adjusted effect over all matches, against the median minute it is bought."
+    : `Each item's effect in matches where ${name} is an enemy, against the median minute it is bought. Points are colored by tier within this chart.`;
+  let all, gy;
+  if (general) { all = [...ie.values()].map(r => ({ ...r, item: r.name })); gy = r => r.effect; }
+  else { all = d; gy = r => r.effect_with; }
+  // tiers are relative to everything in the chart; the filter bar only narrows what is shown
+  all = withTiers(all.filter(p => p.median_buy_min != null && gy(p) != null), gy);
+  const draw = () => {
+  const keep = filter();
+  const pts = all.filter(keep);
+  const nset = notableSet(pts, gy);
+  const plot = () => scatterPlot(el.querySelector("#csc"), pts, {
+    x: p => p.median_buy_min, y: gy, label: p => p.item, tier: p => p._t, ref: 0, r: sizeBy(pts, p => p.n),
+    xTick: minTick, yTick: ppTick, xTitle: "Typical purchase time (median minute)", yTitle: general ? "Item effect, pp" : `Effect vs ${name}, pp`,
+    notable: p => nset.has(p), labelAll: state.labelAll.counters, height: state.labelAll.counters ? 640 : 420,
+    tip: p => `${badge(p._t)} <b>${esc(p.item)}</b> · ${shop(p.tier)} ${esc(p.slot || "")}<br>${general ? "Effect" : `Effect vs ${esc(name)}`} ${pp(gy(p))} · bought ~${num(p.median_buy_min, 1)} min` +
+      (general ? `<br>${num(p.n)} purchases` : `<br>Extra vs other enemies ${pp(p.delta_shrunk)} · kill odds ${ratio(p.kor)} · protection ${ratio(p.dor)}<br>${num(p.n)} purchases vs ${esc(name)}`) });
+  bindLabelToggle(el, "counters", plot); plot();
+
+  table(el.querySelector("#ctb"), d.filter(keep), [
+    TIER_COL(`extra effect vs ${name}`), { key: "item", label: "Item", l: 1 }, { key: "slot", label: "Slot type", l: 1 },
+    { key: "tier", label: "Shop", fmt: shop }, { key: "n", label: "Buys vs hero", fmt: v => num(v) },
+    { key: "delta_shrunk", label: "Extra effect", fmt: pp, bar: 1, tip: "Effect when this hero is an enemy minus effect otherwise (shrunk)" },
+    { key: "effect_with", label: "Effect vs hero", fmt: pp }, { key: "kor", label: "Kill odds", fmt: ratio },
+    { key: "dor", label: "Protection", fmt: ratio }, { key: "median_buy_min", label: "Buy min", fmt: v => num(v, 1) },
+    { key: "q_value", label: "q", fmt: qfmt }], { sort: "delta_shrunk" });
+  };
+  const filter = bindItemFilter(el, "counters", draw); draw();
+}
+
+function renderFits(el) {
+  const sel = state.fitHero ?? firstHero();
+  el.innerHTML = `<div class="card"><h2>Which items fit this hero?</h2><p class="why">Effect on this hero, how much of that is hero-specific, and what similar playstyles predict.</p>
+    <div class="toolbar"><span class="lbl">Hero</span><span id="fh"></span><label class="chk"><input type="checkbox" id="fonly"> Only underused</label></div><div id="ftb"></div>
+    <p class="note">Hero-specific = effect on this hero minus the item's average effect (shrunk toward 0 when the sample is small). Profile fit = what heroes with a similar kill mix, range, scaling and kit predict for this item (this hero's own data left out).</p></div>`;
+  combo(el.querySelector("#fh"), heroList(), sel, v => { state.fitHero = v; renderFits(el); }, { label: "Hero" });
+  const only = el.querySelector("#fonly");
+  only.checked = !!state.fitOnly; only.onchange = e => { state.fitOnly = e.target.checked; renderFits(el); };
+  let d = withTiers(inScope("hero_item_fit").filter(r => r.hero_id === Number(sel)), r => r.effect_shrunk);
+  if (state.fitOnly) d = d.filter(r => r.underused_proven || r.underused_predicted);
+  table(el.querySelector("#ftb"), d, [
+    TIER_COL("effect on this hero"), { key: "name", label: "Item", l: 1 }, { key: "tier", label: "Shop", fmt: shop }, { key: "n", label: "Buys", fmt: v => num(v) },
+    { key: "buy_rate", label: "Bought", fmt: pct }, { key: "effect_shrunk", label: "Effect on hero", fmt: pp, bar: 1 },
+    { key: "hero_specific", label: "Hero-specific", fmt: pp, bar: 1 }, { key: "fit_predicted", label: "Profile fit", fmt: pp, bar: 1 },
+    { key: "median_buy_min", label: "Buy min", fmt: v => num(v, 1) }, { key: "underused_proven", label: "Underused", l: 1, fmt: (v, r) => flags(r) }],
+    { sort: "effect_shrunk" });
+}
+
+function renderMatchups(el) {
+  const sel = state.mHero ?? firstHero();
+  el.innerHTML = `<div class="toolbar"><span class="lbl">Hero</span><span id="mh"></span></div>
+    <div class="grid2"><div class="card"><h2>Against enemies</h2><p class="why">Win rate above what both heroes' overall strength predicts. Positive = this hero counters them.</p><div id="mt1"></div></div>
+    <div class="card"><h2>With allies</h2><p class="why">Synergy: win rate above expectation when on the same team.</p><div id="mt2"></div></div></div>`;
+  combo(el.querySelector("#mh"), heroList(), sel, v => { state.mHero = v; renderMatchups(el); }, { label: "Hero" });
+  const h = Number(sel);
+  const vs = withTiers(inScope("hero_counters").filter(r => r.hero_a === h).map(r => ({ ...r, other: r.name_b })), r => r.effect_shrunk);
+  const syn = withTiers(inScope("hero_synergy").filter(r => r.hero_a === h || r.hero_b === h).map(r => ({ ...r, other: r.hero_a === h ? r.name_b : r.name_a })), r => r.effect_shrunk);
+  const cols = [TIER_COL("win rate above expected"), { key: "other", label: "Hero", l: 1 }, { key: "n", label: "Games", fmt: v => num(v) },
+                { key: "win_rate", label: "Raw WR", fmt: pct }, { key: "effect_shrunk", label: "Above expected", fmt: pp, bar: 1 }];
+  table(el.querySelector("#mt1"), vs, cols, { sort: "effect_shrunk", height: "min(70vh, 620px)" });
+  table(el.querySelector("#mt2"), syn, cols, { sort: "effect_shrunk", height: "min(70vh, 620px)" });
+}
+
+function renderProfiles(el) {
+  el.innerHTML = `<div class="card"><h2>Playstyle profiles</h2><p class="why">Observed behaviour (all in-scope matches) and static stats used to predict hero × item fits.</p><div id="ptb"></div></div>`;
+  table(el.querySelector("#ptb"), rows("hero_profiles"), [
+    { key: "hero", label: "Hero", l: 1 }, { key: "melee_kill_share", label: "Melee kills", fmt: pct },
+    { key: "bullet_kill_share", label: "Bullet kills", fmt: pct }, { key: "ability_kill_share", label: "Ability kills", fmt: pct },
+    { key: "bullet_engage_dist_m", label: "Gun range m", fmt: v => num(v, 1) }, { key: "ability_engage_dist_m", label: "Ability range m", fmt: v => num(v, 1) },
+    { key: "hit_rate", label: "Hit rate", fmt: pct }, { key: "crit_rate", label: "Headshot %", fmt: pct },
+    { key: "parries_per_game", label: "Parries/g", fmt: v => num(v, 2) }, { key: "jungle_soul_share", label: "Jungle souls", fmt: pct },
+    { key: "heavy_melee", label: "Heavy melee", fmt: v => num(v) }, { key: "heavy_melee_scaling", label: "Melee scale", fmt: v => num(v, 2) },
+    { key: "weapon_dps", label: "Gun DPS", fmt: v => num(v, 1) }, { key: "kit_spirit_scaling", label: "Kit spirit scale", fmt: v => num(v, 2) }],
+    { sort: "melee_kill_share" });
+}
+
+function renderMethod(el) {
+  const s2 = (META.season_starts || [])[0];
+  el.innerHTML = `<div class="card method"><h2>How to read this</h2>
+  <p><b>Scope.</b> Matches since ${META.patch_start}, Ranked + Unranked (toggle Ranked only), Normal mode, ≥10 min, no abandons. Initiate–Acolyte excluded. Unranked matches are bracketed by the average ranked badge of their players (≥${META.min_known_players ?? 3} of 12 known; matches with fewer count only toward All ranks).${s2 ? ` Ranked Beta Season 2 started ${esc(s2.slice(0, 16))} UTC; earlier badges are mapped onto the Season 2 scale.` : ""}</p>
+  <p><b>Tiers (S–F).</b> Relative to the list or chart they appear in: each value's distance from the median of that population in standard deviations. S ≥ +1.5, A ≥ +0.9, B ≥ +0.3, C within ±0.3, D ≤ −0.3, E ≤ −0.9, F ≤ −1.5. A tier says how an entry ranks among its peers in this view, not that it is significant; check the effect's interval or q-value.</p>
+  <p><b>Hero strength.</b> L2 logistic regression of the match result on both drafts, skill difference, side and mode. Adj. win rate = a team with this hero instead of an average one.</p>
+  <p><b>Item effect.</b> A per-tick state model gives each team's win probability from souls lead, kill lead, skill and draft. Each purchase is scored against the state at the moment it was bought; an item's effect is its buyers' surplus over that prediction, relative to every other item of the same shop tier bought at the same time. This removes "winners buy more items" bias. It does not remove choice bias entirely (players buy defensive items when they are under pressure), so treat small effects with care.</p>
+  <p><b>Purchase time.</b> Median minute at which the item is bought (in this scope, or by this hero).</p>
+  <p><b>Counters.</b> Two independent checks: the item's effect with vs without the enemy hero (each against its own baseline of other items bought in the same kind of match), and Mantel–Haenszel kill-share odds within the same match, side and 5-minute window.</p>
+  <p><b>Shrinkage.</b> Hero × item, counter and matchup estimates are pulled toward zero (empirical Bayes) in proportion to their noise; q-values control the false discovery rate.</p>
+  <p class="note">Generated ${META.generated}. Rebuild: python -m dla.ingest · python -m dla.load · python -m dla.analyze · python -m dla.dashboard</p></div>`;
+}
+
+const R = { overview: renderOverview, heroes: renderHeroes, items: renderItems, counters: renderCounters, fits: renderFits,
+            matchups: renderMatchups, profiles: renderProfiles, method: renderMethod };
+function render() {
+  seg.querySelectorAll("button").forEach(b => b.setAttribute("aria-pressed", b.dataset.b === state.bracket));
+  if (!TABS.some(([k]) => k === state.tab)) state.tab = "overview";
+  tabsEl.querySelectorAll("button").forEach(b => b.setAttribute("aria-selected", b.dataset.t === state.tab));
+  document.getElementById("scopeCount").textContent = `${num(META.matches_by_scope[scopeName()] || 0)} matches in this scope`;
+  try { history.replaceState(null, "", "#" + state.tab + "/" + encodeURIComponent(state.bracket)); } catch (e) {}
+  document.getElementById("tip").hidden = true;
+  for (const [k] of TABS) { const s = document.getElementById("tab-" + k); s.hidden = k !== state.tab; if (k === state.tab) { s.innerHTML = ""; R[k](s); } }
+}
+// charts are sized to their container: redraw on width changes
+let lastW = innerWidth, rt;
+addEventListener("resize", () => { if (innerWidth === lastW) return; lastW = innerWidth; clearTimeout(rt); rt = setTimeout(render, 150); });
+render();
+</script>
+</body>
+</html>

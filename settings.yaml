@@ -1,0 +1,176 @@
+# Analysis pipeline settings. (Steam credentials stay in config.yaml, which is only
+# needed if deadbot ever has to be run.)
+
+paths:
+  deadlock_data: ../deadlock-data/data      # cloned deadlock-data repo
+  # local store for downloaded / derived data (~20 GB raw + ~2x that in scratch during load).
+  # Absolute or relative to this folder. On E: because C: is nearly full.
+  data_dir: E:/dla-data
+
+# ---- Balance window -------------------------------------------------------
+# Only matches played on the current balance state are analysed.
+# patch_start: ISO-8601 UTC timestamp, or "auto" = latest non-hero-lab changelog in
+# deadlock-data (date only, +1 day safety margin since Valve posts late PT).
+patch:
+  patch_start: "2026-11-05T06:00:00Z"   # "Minor Update - 11-04-2026" posted 2026-11-05 05:02 UTC
+  patch_end: null                       # null = now
+
+# ---- Match dump ingestion (https://deadlock-api.com/data-dumps) ------------
+ingest:
+  manifest_url: https://data.deadlock-api.com/v1/manifest.json
+  table: match_player
+  threads: 4                    # concurrent remote files
+  duckdb_threads_per_file: 4
+  memory_limit_per_file: 5GB    # x threads must fit in RAM (custom stats maps are memory-heavy)
+  # Remote filters applied before download (pushdown):
+  match_modes: [Ranked, Unranked]
+  game_modes: [Normal]          # excludes StreetBrawl
+  require_team_win: true        # match_outcome = TeamWin
+  # Columns pulled from match_player. Dotted names are nested arrays in the dump.
+  columns:
+    match:
+      - match_id
+      - start_time
+      - duration_s
+      - match_mode
+      - average_badge
+      - average_badge_team0
+      - average_badge_team1
+      - winning_team
+      - low_pri_pool
+      - new_player_pool
+      - not_scored
+      - is_high_skill_range_parties
+      - banned_hero_ids
+      - "mid_boss.team_claimed"
+      - "mid_boss.destroyed_time_s"
+    player:
+      - account_id
+      - player_slot
+      - team
+      - hero_id
+      - won
+      - kills
+      - deaths
+      - assists
+      - net_worth
+      - last_hits
+      - denies
+      - assigned_lane
+      - player_level
+      - abandon_match_time_s
+      - party
+      - player_rank_initial_display_rank
+      - ability_stats
+      - "items.item_id"
+      - "items.game_time_s"
+      - "items.sold_time_s"
+      - "items.flags"
+      - "items.upgrade_id"
+      - "items.imbued_ability_id"
+      - "stats.time_stamp_s"
+      - "stats.net_worth"
+      - "stats.kills"
+      - "stats.deaths"
+      - "stats.assists"
+      - "stats.level"
+      - "stats.player_damage"
+      - "stats.player_damage_taken"
+      - "stats.player_healing"
+      - "stats.boss_damage"
+      - "stats.creep_kills"
+      - "stats.denies"
+      # who killed whom (counter analysis)
+      - "death_details.game_time_s"
+      - "death_details.killer_player_slot"
+      - "death_details.death_duration_s"
+      # ranked season / interval (Season 2 started 2026-11-18)
+      - rank_interval
+  # Computed columns (DuckDB SQL over the remote row), stored instead of raw heavy columns.
+  derived:
+    # playstyle / damage profile: end-of-match totals only (stats.* are cumulative per tick)
+    final_bullet_kills: list_last("stats.bullet_kills")
+    final_melee_kills: list_last("stats.melee_kills")
+    final_ability_kills: list_last("stats.ability_kills")
+    final_headshot_kills: list_last("stats.headshot_kills")
+    final_self_healing: list_last("stats.self_healing")
+    final_damage_mitigated: list_last("stats.damage_mitigated")
+    final_heal_prevented: list_last("stats.heal_prevented")
+    final_shots_hit: list_last("stats.shots_hit")
+    final_shots_missed: list_last("stats.shots_missed")
+    final_hero_bullets_hit: list_last("stats.hero_bullets_hit")
+    final_hero_bullets_hit_crit: list_last("stats.hero_bullets_hit_crit")
+    final_gold_lane_creep: list_last("stats.gold_lane_creep")
+    final_gold_neutral_creep: list_last("stats.gold_neutral_creep")
+    final_gold_player: list_last("stats.gold_player")
+    # custom_user_stats_deltas is delta-encoded per stats tick; keep only final totals
+    # (engagement-distance histograms, hit/headshot rates, parries, comeback gold, ...)
+    custom_stats: >-
+      map_from_entries(list_transform(map_entries(custom_user_stats_deltas),
+        lambda e: struct_pack(key := e.key, value := list_sum(e.value))))
+
+# ---- Cleaning applied when loading the local store ---------------------------
+clean:
+  min_duration_s: 600           # drop stomps/remakes shorter than 10 min
+  drop_abandoned_matches: true  # any player with abandon_match_time_s > 0
+  drop_low_pri: true
+  drop_new_player_pool: true
+  memory_limit: 16GB          # DuckDB memory cap for the loader (spills to data/duckdb_tmp)
+  threads: 8                  # fewer threads = less memory held by in-flight nested row groups
+
+# ---- Skill / rank brackets ----------------------------------------------------
+# Badge = tier*10 + subrank. Tiers: 0 Obscurus(placement) 1 Initiate 2 Seeker 3 Acolyte
+# 4 Sentinel 5 Mystic 6 Ritualist 7 Emissary 8 Oracle 9 Phantom 10 Ascendant 11 Eternus
+skill:
+  brackets:                       # name: [min_tier, max_tier] inclusive
+    Sentinel-Ritualist: [4, 6]
+    Emissary-Phantom: [7, 9]
+    Ascendant+: [10, 11]
+  focus_bracket: Sentinel-Ritualist
+  exclude_below_tier: 4           # Initiate-Acolyte excluded everywhere (new players + smurfs)
+  # Unranked matches have no badge; a match's skill is estimated from the ranked badges of
+  # its players (from their own ranked games this window). Need this many known players:
+  # Ranked matchmaking is tight: bracket from 3 random players agrees with all 12 in 96% of
+  # ranked matches (6 players: 97.6%, 2: 94.9%). 3 puts ~1.2M unranked matches in brackets;
+  # 6 only ~0.3M. Rebuild with `python -m dla.load --matches-only` after changing.
+  min_known_players: 3
+  # Beta Season 2 soft-reset ranks (~-1 badge + redistribution). Badges are compared within
+  # a season; older seasons are mapped onto the latest season's scale by quantile matching
+  # over accounts seen in both.
+  # Measured in the dump: rank_interval 1->2 and ranked bans 3->4 switch across the server
+  # downtime 2026-11-05 20:07-20:25 UTC (hero balance had already changed ~05:00 that day,
+  # so the balance window starts before the season does).
+  season_starts:
+    - "2026-11-05T20:15:00Z"
+
+# ---- Analysis parameters -----------------------------------------------------
+analysis:
+  # Purchase- and death-level stages (items, counters) run on a stable hash sample of
+  # matches to bound memory/disk. Hero stages always use every match.
+  heavy_sample_fraction: 0.4
+  heroes:
+    min_games: 2000             # below this a hero is flagged low_sample in a scope
+    min_pair_games: 1000        # counters / synergies
+    l2: 1.0                     # ridge penalty of the hero-strength logistic model
+  items:
+    max_tick_min: 60            # state ticks (stats snapshots: 3-min to 15:00, then 5-min) up to here; later buys use the last
+    state_model_sample_matches: 400000
+    min_purchases: 2000
+    min_hero_purchases: 300
+  counters:
+    min_tier: 1                 # lowest shop tier considered as a counter-buy (1 = all items)
+    min_purchases: 1000         # item x enemy-hero purchases for the win signal
+    time_bucket_s: 300          # strata width for the kill-share analysis
+    min_kill_events: 200
+  fits:
+    min_heroes_for_fit: 10      # heroes with purchases needed to learn an item's profile fit
+    ridge_alpha: 10.0
+    min_effect: 0.01            # 1 win-rate point counts as a meaningful effect
+    rare_buy_rate: 0.05         # "rarely bought": under 5% of the hero's players buy it ...
+    rare_buy_pct: 0.334         # ... or bottom third of heroes by buy rate for that item
+
+# ---- Game-data validity rules (deadlock-data) --------------------------------
+gamedata:
+  street_brawl_price: 9999      # items at this cost are Street-Brawl only
+  exclude_disabled_items: true
+  exclude_disabled_heroes: true
