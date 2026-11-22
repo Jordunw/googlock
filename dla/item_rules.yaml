@@ -1,0 +1,331 @@
+# How item properties (deadlock-data item-cards.json) turn into value. Used by dla/itemvalue.py.
+#
+# properties:  <PropertyKey>: <kind>  or  {kind: <kind>, <param>: ...}
+#   Generic: the same key means the same thing on every item. The card block it sits in
+#   (Innate / Passive / Active, cooldown, duration, ConditionallyApplied flag) decides how
+#   often it is up; see itemvalue.py for the uptime rules.
+#   Params: aoe (x item_value.targets), factor (multiplier), per_stack (x MaxStacks x
+#   stack_fill), cond (low_hp | close | long: x that share), dur_key (property holding
+#   this value's own duration when a block lists several).
+#   kind "ignore" = known, deliberately not valued (non-hero, cosmetic, helper values).
+#   Keys not listed anywhere are reported per item as `unmodeled`.
+#
+# items:  <item key>: overrides for mechanics the card does not express as numbers
+#   add:   extra effects  [{kind, value, use: always|proc|active, duration, aoe}]
+#   skip:  property keys to ignore on this item
+#   uses_per_min / uptime: replace the computed activations per fight / buff uptime
+#                ('per_shot' = on-hit chance x hero hits in the fight)
+#   trigger: cast | imbued_cast | melee | headshot -> caps procs at triggers_per_fight
+#   remap: {PropertyKey: kind} for this item only
+#   note:  shown in the dashboard next to the item
+
+properties:
+  # ---- health & mitigation -----------------------------------------------------
+  BonusHealth: hp
+  BonusBaseHealth: hp_pct            # Colossus: % base health
+  MaxHealthLossPercent: hp_pct       # Glass Cannon: negative
+  BulletResist: resist_bullet
+  BuffBulletResist: resist_bullet
+  BulletResistBelowThreshold: {kind: resist_bullet, cond: low_hp}
+  TechResist: resist_spirit
+  BuffTechResist: resist_spirit
+  TechResistBelowThreshold: {kind: resist_spirit, cond: low_hp}
+  TechArmorGain: resist_spirit
+  MeleeResistPercent: resist_melee
+  CombatBarrier: barrier
+  GuardianWardCombatBarrier: barrier
+  VexBarrierCombatBarrier: barrier
+  DeathImmunityDamageReduction: ignore   # Cheat Death modelled in items:
+  SpiritDamageReductionProc: ignore      # Spellbreaker modelled in items:
+  BulletResistPerStack: ignore           # Escalating Resilience modelled in items:
+  DeflectionPercent: {kind: resist_bullet, factor: 1.0}
+  BulletProcDeflectionPercent: ignore
+  # ---- sustain -------------------------------------------------------------------
+  BonusHealthRegen: regen
+  OutOfCombatHealthRegen: ooc_regen
+  Regeneration: {kind: regen_proc, aoe: true}   # per enemy hero hit, stacks per hero
+  TotalHealthRegen: heal                        # over RegenDuration
+  HealOnKill: {kind: heal, factor: 0.25}        # ~1 kill per 4 fights
+  HealOnActivate: heal
+  HealOnSuccess: {kind: heal, factor: 0.5}      # successful spell parry
+  HealOnVeil: heal
+  HealingPerCast: heal
+  HealPerStack: {kind: heal, factor: 10}        # Restorative Locket: ~10 stacks when used
+  HealFromHero: heal
+  LifestrikeHeal: heal
+  LifestealHeal: heal
+  LifestealHealPercent: ignore          # % of melee damage; melee share small
+  HealPercentAmount: heal_pct_hp      # Rescue Beam: 20% of max HP over the channel
+  HealPercentPerHeadshot: {kind: heal_pct_hp, factor: 1}
+  HealLifePercentOutOfCombat: {kind: ooc_regen_pct}
+  ParrySuccessHealPercentage: ignore
+  BulletLifestealPercent: lifesteal_bullet
+  ActiveBonusLifesteal: lifesteal_bullet
+  AbilityLifestealPercentHero: lifesteal_spirit
+  AbilityLifestealPercentHeroPassive: lifesteal_spirit
+  BonusSpiritLifesteal: lifesteal_spirit
+  ImbueAbilityLifesteal: {kind: lifesteal_spirit, factor: 0.25}   # imbued ability only
+  HealAmpCastPercent: heal_amp
+  HealAmpRegenPercent: ignore           # counted with HealAmpCastPercent
+  HealthStealPctHero: ignore            # Siphon Bullets modelled in items:
+  # ---- weapon --------------------------------------------------------------------
+  BaseAttackDamagePercent: weapon_pct
+  BaseAttackDamagePercentBonus: {kind: weapon_pct, cond: low_hp}   # vs enemies < 50% hp
+  BaseAttackDamagePercentAtMaxDuration: {kind: weapon_pct, factor: 0.5}  # ramps up over 2.5 s
+  BonusFireRate: fire_rate_pct          # fire rate: scales shooting only, not weapon-scaled ability damage
+  ActiveBonusFireRate: fire_rate_pct
+  ActivatedFireRate: fire_rate_pct
+  FireRateBonus: fire_rate_pct
+  FervorFireRate: {kind: fire_rate_pct, cond: low_hp}
+  FireRatePerKill: {kind: fire_rate_pct, factor: 2}   # ~2 kills of stacks held
+  CloseRangeBonusWeaponPower: {kind: weapon_pct, cond: close}
+  LongRangeBonusWeaponPower: {kind: weapon_pct, cond: long}
+  AmbushBonusWeaponDamage: {kind: weapon_pct, factor: 0.33}
+  WeaponPowerPerStack: {kind: weapon_pct, per_stack: true}
+  WeaponDamagePerStack: {kind: weapon_pct, per_stack: true, dur_key: WeaponDamageBonusDuration}
+  BonusClipSizePercent: clip_pct
+  BonusClipSize: {kind: clip_pct, factor: 4.7}     # flat rounds -> % of an average 21-round clip
+  AmmoReloadPercent: ignore
+  BonusBulletSpeedPercent: bullet_speed_pct
+  BonusAttackRangePercent: ignore
+  BonusZoomPercent: ignore
+  HeadShotBonusDamage: bullet_proc
+  ProcBaseAttackDamagePercent: {kind: bullet_proc_pct}
+  ProcBaseAttackDamagePercentAltFire: ignore
+  BulletSplitShot: {kind: fire_rate_pct, factor: 8, dur_key: BonusShotsDuration}   # +5 pellets ~ +40% while it lasts
+  CritDamagePercent: ignore              # Lucky Shot modelled in items:
+  RicochetDamagePercent: ignore          # Ricochet modelled in items:
+  ReloadSpeedMultipler: {kind: fire_rate_pct, factor: -0.15, per_stack: true}
+  NonPlayerBonusWeaponPower: ignore
+  NonPlayerBulletResist: ignore
+  # ---- melee ---------------------------------------------------------------------
+  BonusMeleeDamagePercent: melee_pct
+  BonusHeavyMeleeDamage: {kind: melee_pct, factor: 0.5}
+  MeleeDistanceScale: ignore
+  LightMeleeAmmo: ignore
+  # ---- spirit --------------------------------------------------------------------
+  TechPower: spirit_power
+  SpiritPower: spirit_power
+  SpiritPowerInnate: spirit_power
+  BonusSpirit: spirit_power
+  ImbuedTechPower: {kind: spirit_power, factor: 0.25}   # one imbued ability
+  AmbushBonusTechPower: {kind: spirit_power, factor: 0.33}
+  TechPowerGain: spirit_power
+  TechPowerPercent: spirit_power_pct
+  BonusSpiritForChargedAbilities: {kind: spirit_power, factor: 0.25}
+  Damage: {kind: spirit_dmg}
+  SpiritDamage: spirit_dmg
+  ImpactDamage: spirit_dmg
+  ProcBonusMagicDamage: spirit_dmg
+  BulletsBonusMagicDamage: {kind: spirit_dmg, factor: 4}   # bonus on each bullet of the buffed clip (~4 hero hits)
+  DamagePerChain: {kind: spirit_dmg, aoe: true}
+  DamagePulseAmount: {kind: spirit_dmg, aoe: true, cond: close}
+  ExplosionDamage: ignore
+  DPS: spirit_dps
+  DotHealthPercent: {kind: spirit_pct_hp_dps}
+  MaxHealthPercentAsDPS: {kind: spirit_pct_hp_dps, aoe: true, cond: close}   # Scourge: 10 m aura, % of own max HP
+  CurrentHealthDamage: {kind: spirit_pct_hp, factor: 0.6}   # % of current health ~ 60% of max on average
+  TechDamagePercent: {kind: spirit_amp_proc}
+  MaxHealthDamage: ignore
+  MinimumDamage: ignore
+  DPSMax: ignore
+  # ---- cooldown / duration / range / charges --------------------------------------
+  CooldownReduction: cdr
+  CooldownReductionOnChargedAbilities: {kind: cdr, factor: 0.25}
+  CooldownBetweenChargeReduction: {kind: cdr, factor: 0.25}
+  UltimateCooldownReduction: {kind: cdr, factor: 0.25}
+  ItemCooldownReduction: item_cdr        # items' cooldowns, passive procs included (not charge-up items)
+  CooldownReductionPerHit: ignore
+  CooldownReductionPctOnOthers: ignore
+  ParryCooldownReduction: ignore
+  ImbuedCooldownMultiplier: ignore
+  InterruptCooldown: ignore
+  BonusAbilityDurationPercent: duration_pct
+  TechRangeMultiplier: range_pct
+  TechRangeMultiplierBuff: range_pct
+  StackingTechRangeMultiplier: {kind: range_pct, per_stack: true}
+  TechRadiusMultiplier: ignore             # paired with TechRangeMultiplier
+  TechRadiusMultiplierBuff: ignore
+  StackingTechRadiusMultiplier: ignore
+  BonusAbilityCharges: charges
+  BulletDamageReflectedPct: reflect_bullet
+  SpiritDamageReflectedPct: reflect_spirit
+  HealthDrainedPerSecond: self_drain
+  # ---- enemy debuffs ----------------------------------------------------------------
+  BulletArmorReduction: enemy_bullet_resist_down
+  BulletResistReduction: enemy_bullet_resist_down
+  TechArmorDamageReduction: enemy_spirit_resist_down
+  MagicResistReduction: enemy_spirit_resist_down
+  MagicIncreasePerStack: {kind: enemy_spirit_resist_down, per_stack: true, factor: -1}   # positive = more damage taken
+  OutgoingDamagePenaltyPercent: enemy_damage_down
+  TechDamageReduction: enemy_spirit_damage_down
+  FireRateSlow: enemy_fire_rate_down
+  HealAmpReceivePenaltyPercent: enemy_heal_down
+  TechPowerReduction: {kind: enemy_spirit_damage_down, factor: 0.3}   # -30 spirit power ~ -9% spirit dmg
+  # ---- crowd control ------------------------------------------------------------------
+  SlowPercent: slow
+  MovementSpeedSlow: slow
+  MaxSlowPercent: slow
+  GroundDashReductionPercent: {kind: slow, factor: 0.5}
+  StunDuration: stun_s
+  SilenceDuration: silence_s
+  FreezeDuration: stun_s
+  TetherDuration: stun_s
+  # ---- mobility & misc --------------------------------------------------------------
+  BonusMoveSpeed: move
+  ActiveBonusMoveSpeed: move
+  FervorMovespeed: {kind: move, cond: low_hp}
+  StackingBonusSprintSpeed: {kind: sprint, per_stack: true}
+  BonusSprintSpeed: sprint
+  FlyMoveSpeed: {kind: move, factor: 0.5}
+  InvisMoveSpeedMod: ignore
+  ActiveMoveSpeedPenalty: move
+  AirControlPercent: ignore
+  AirMoveIncreasePercent: ignore
+  AirControlPercentBarrier: ignore
+  SlideScale: ignore
+  Stamina: stamina
+  StaminaCooldownReduction: {kind: stamina, factor: 0.05}   # 20% stamina recovery ~ 1 stamina
+  MaxStaminaRestore: ignore
+  SlowResistancePercent: {kind: status_resist, factor: 0.3}   # slows only, a fraction of all debuffs
+  StatusResistancePercent: status_resist
+  InnateStatusResistancePercent: status_resist
+  FervorStatusResistancePercent: {kind: status_resist, cond: low_hp}
+  StackingGoldPerMinute: {kind: souls_per_min, per_stack: true}
+  BonusGoldPerMinute: souls_per_min
+  MoveWhileShootingSpeedPenaltyReductionPercent: ignore
+  MoveWhileZoomedSpeedPenaltyReductionPercent: ignore
+  # ---- helpers read by the engine, not values themselves ---------------------------
+  AbilityDuration: ignore
+  BuffDuration: ignore
+  DebuffDuration: ignore
+  SlowDuration: ignore
+  RegenDuration: ignore
+  RegenerationDuration: ignore
+  BarrierDuration: ignore
+  CasterBuffDuration: ignore
+  MovementSpeedBonusDuration: ignore
+  FireRateSlowDuration: ignore
+  InvisDuration: ignore
+  DotDuration: ignore
+  BuildUpDuration: ignore
+  BuildUpPerShot: ignore                 # read by the engine: build-up procs take item_value.buildup_ref_s / this to proc
+  MaxStacks: ignore
+  ProcChance: ignore
+  AbilityCastRange: ignore
+  AbilityCastDelay: ignore
+  AbilityChannelTime: ignore
+  Radius: ignore
+  EndRadius: ignore
+  AuraRadius: ignore
+  ActiveRadius: ignore
+  ChainCount: ignore
+  ChainRadius: ignore
+  RicochetTargets: ignore
+  RicochetRadius: ignore
+  DamagePulseRadius: ignore
+  CaptureRadius: ignore
+  ProcRadius: ignore
+  CloseRangeBonusDamageRange: ignore
+  LongRangeBonusWeaponPowerMinRange: ignore
+  DamageThreshold: ignore
+  DamageWindow: ignore
+  DamageToStack: ignore
+  DamageDuration: ignore
+  HealthThreshold: ignore
+  LifeThreshold: ignore
+  LowHealthThreshold: ignore
+  EnemyLifeThreshold: ignore
+  ImmunityDuration: ignore
+  DelayBeforeStun: ignore
+  ShootDurationForMax: ignore
+  StealDuration: ignore
+  ResistReductionDuration: ignore
+  SpellParryDuration: ignore
+  WeaponDamageBonusDuration: ignore
+  BonusShotsDuration: ignore
+  DeathImmunityDuration: ignore
+  StatusEffectInvisible: ignore
+  StatusEffectDisarmed: ignore
+  StatusEffectEMP: ignore
+  AbilityCooldown: ignore
+
+items:
+  upgrade_metal_skin:
+    add: [{kind: immune_bullet_s, value: 5, use: active}]
+    note: bullet immunity for 5 s (not a card number)
+  upgrade_self_bubble:
+    add: [{kind: immune_all_s, value: 4, use: active, factor: 0.5}]
+    note: 4 s invulnerable but unable to act; valued at half
+  upgrade_unstoppable:
+    add: [{kind: status_resist, value: 100, use: active, duration: 5.5}]
+    note: CC immunity for 5.5 s
+  upgrade_cheat_death:
+    add: [{kind: hp_pct_full, value: 40, use: proc}]
+    note: survives one lethal hit per 90 s, ~+40% of max HP when it triggers
+  upgrade_critshot:
+    add: [{kind: weapon_pct, value: 25, use: always}]
+    note: 25% chance for +100% damage
+  upgrade_ricochet:
+    add: [{kind: weapon_pct, value: 39, use: always}]
+    note: 65% damage to 2 extra targets, ~30% of shots have a second hero in range
+  upgrade_siphon_bullets:
+    add: [{kind: hp, value: 250, use: always}]
+    note: steals max HP per hero hit; ~10 stacks held on average
+  upgrade_spellbreaker:
+    add: [{kind: resist_spirit, value: 20, use: always}]
+    note: -65% spirit damage after a 175-damage burst, every 9 s
+  upgrade_reinforcing_casings:
+    add: [{kind: resist_bullet, value: 20, use: always}]
+    note: stacks +2% bullet resist per hit up to 30; ~10 stacks
+  upgrade_glitch:
+    add: [{kind: silence_s, value: 3.25, use: active}, {kind: disarm_s, value: 3.25, use: active}]
+  upgrade_phantom_strike:
+    add: [{kind: disarm_s, value: 1.5, use: active}]
+  upgrade_proc_silence:
+    skip: [SilenceDuration]
+    add: [{kind: silence_s, value: 2.5, use: proc, cooldown: 10}]
+  upgrade_ultimate_burst:
+    add: []
+    uses_per_min: 1
+  upgrade_ability_power_shard:        # Echo Shard: recharge one non-ultimate ability instantly
+    skip: [ImbuedCooldownMultiplier]
+    add: [{kind: echo, value: 1, use: cooldown}]
+    note: a second cast of the hero's best non-ultimate ability (damage, healing, CC) per use
+  upgrade_ability_refresher:          # Refresher: resets all cooldowns; in practice used for a second ult
+    add: [{kind: refresh_ult, value: 1, use: cooldown}]
+    note: a second ultimate per use (no more often than the ult itself), x ult_weight for teamfight impact
+  upgrade_chain_lightning:
+    uses_per_min: per_shot
+  upgrade_capacitor:
+    uses_per_min: per_shot
+  upgrade_split_shot:
+    note: buff lasts 5 s; stacks weapon damage for 12 s
+  upgrade_goose_egg:
+    remap: {OutgoingDamagePenaltyPercent: self_damage_pct, BonusGoldPerMinute: souls_held}
+    held_minutes: 20      # median time from purchase to sale in the match data (91% are sold)
+    add: [{kind: sell_refund, value: 0}]
+    note: souls per minute while alive for the ~20 min it is held, plus the sale refund; its stats and damage penalty count for 20 of item_horizon_minutes
+  # ---- procs capped by their trigger ----------------------------------------------------
+  upgrade_lifestrike_gauntlets: {trigger: melee}      # Melee Lifesteal
+  upgrade_boxing_glove: {trigger: melee}              # Lifestrike
+  upgrade_acolytes_glove: {trigger: melee}            # Spirit Strike
+  upgrade_spirit_snatch: {trigger: melee}
+  upgrade_melee_charge: {trigger: melee}
+  upgrade_crushing_fists: {trigger: melee}
+  upgrade_resonant_healing: {trigger: cast}           # Radiant Regeneration
+  upgrade_magic_burst: {trigger: cast, charge_up: true}                # Mystic Burst
+  upgrade_magic_shock: {trigger: cast, charge_up: true}                # Tankbuster
+  upgrade_quick_silver: {trigger: cast, charge_up: true}
+  upgrade_ethereal_bullets: {trigger: cast, charge_up: true}           # Mercurial Magnum
+  upgrade_magic_storm: {trigger: imbued_cast}         # Surge of Power
+  upgrade_mystic_reverb: {trigger: imbued_cast}
+  upgrade_headshot_booster: {trigger: headshot}
+  upgrade_headhunter: {trigger: headshot}
+  upgrade_health_stimpak:                             # Healing Rite
+    remap: {TotalHealthRegen: recovery_heal}
+    note: dispelled by enemy damage, so valued as out-of-combat recovery
+  upgrade_magic_slow: {trigger: cast}                 # Mystic Slow: on ability hit
+  upgrade_weapon_backstabber:          # Stalker
+    uses_per_min: 1
+    note: needs 6 s without taking damage, so once per fight

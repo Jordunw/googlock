@@ -15,6 +15,8 @@
   --t6: #e2c522; --t6-ink: #0b0b0b;  --t5: #2a78d6; --t5-ink: #fff;  --t4: #86b6ef; --t4-ink: #0b0b0b;
   --t3: #dcdbd4; --t3-ink: #0b0b0b; --t3-dot: #a8a79f;
   --t2: #ee9796; --t2-ink: #0b0b0b; --t1: #e34948; --t1-ink: #fff;  --t0: #a8302f; --t0-ink: #fff;
+  /* categorical (validated, fixed order): value-breakdown groups, impact categories */
+  --c1: #2a78d6; --c2: #eb6834; --c3: #1baf7a; --c4: #eda100; --c5: #e87ba4; --c6: #008300;
 }
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
@@ -26,6 +28,7 @@
     --t6: #e2c522; --t6-ink: #0b0b0b; --t5: #1c5cab; --t5-ink: #0b0b0b; --t4: #3987e5; --t4-ink: #fff;
     --t3: #383835; --t3-ink: #f0efec; --t3-dot: #6b6a64;
     --t2: #f2a8a7; --t2-ink: #0b0b0b;    --t1: #e66767; --t1-ink: #0b0b0b; --t0: #9b3332; --t0-ink: #fff;
+    --c1: #3987e5; --c2: #d95926; --c3: #199e70; --c4: #c98500; --c5: #d55181; --c6: #0ca30c;
   }
 }
 :root[data-theme="dark"] {
@@ -37,6 +40,7 @@
   --t6: #e2c522; --t6-ink: #0b0b0b; --t5: #1c5cab; --t5-ink: #0b0b0b; --t4: #3987e5; --t4-ink: #fff;
   --t3: #383835; --t3-ink: #f0efec; --t3-dot: #6b6a64;
   --t2: #f2a8a7; --t2-ink: #0b0b0b;    --t1: #e66767; --t1-ink: #0b0b0b; --t0: #9b3332; --t0-ink: #fff;
+  --c1: #3987e5; --c2: #d95926; --c3: #199e70; --c4: #c98500; --c5: #d55181; --c6: #0ca30c;
 }
 * { box-sizing: border-box; }
 body { margin: 0; background: var(--page); color: var(--ink);
@@ -88,8 +92,44 @@ td.dim { color: var(--muted); }
 .tier.t4 { background: var(--t4); color: var(--t4-ink); } .tier.t3 { background: var(--t3); color: var(--t3-ink); }
 .tier.t2 { background: var(--t2); color: var(--t2-ink); } .tier.t1 { background: var(--t1); color: var(--t1-ink); }
 .tier.t0 { background: var(--t0); color: var(--t0-ink); }
-.legend { display: inline-flex; gap: 4px; align-items: center; color: var(--muted); font-size: 12px; }
+.tier.core { background: transparent; color: var(--ink); box-shadow: inset 0 0 0 1.5px var(--ink); letter-spacing: .02em; }
+.legend { display: inline-flex; gap: 4px; align-items: center; color: var(--muted); font-size: 12px; flex-wrap: wrap; }
 .legend .tier { min-width: 20px; }
+.legend .sw { display: inline-block; width: 10px; height: 10px; border-radius: 3px; margin: 0 3px 0 8px; vertical-align: -1px; }
+.ring { display: inline-block; width: 10px; height: 10px; border-radius: 50%; box-shadow: inset 0 0 0 2px var(--ink); vertical-align: -1px; margin: 0 3px 0 8px; }
+.stack { display: inline-flex; gap: 2px; width: 130px; height: 10px; vertical-align: middle; margin-right: 6px; }
+.stack span { height: 10px; border-radius: 2px; }
+.stack span:first-child { border-radius: 4px 2px 2px 4px; } .stack span:last-child { border-radius: 2px 4px 4px 2px; }
+.pos { color: var(--good); } .negv { color: var(--neg); }
+.kv { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 260px), 1fr)); gap: 6px 18px; font-size: 12.5px; color: var(--ink-2); }
+.kv b { color: var(--ink); font-weight: 600; }
+/* item value: editable model assumptions */
+details.model summary { cursor: pointer; display: flex; gap: 10px; align-items: baseline; flex-wrap: wrap; list-style: none; }
+details.model summary::-webkit-details-marker { display: none; }
+details.model summary h2::before { content: "▸ "; color: var(--muted); }
+details.model[open] summary h2::before { content: "▾ "; }
+.params { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 280px), 1fr)); gap: 4px 24px; }
+.params h3 { grid-column: 1 / -1; font-size: 11.5px; color: var(--muted); font-weight: 600; margin: 10px 0 0;
+             text-transform: uppercase; letter-spacing: .05em; }
+.pf { display: flex; justify-content: space-between; align-items: center; gap: 10px; font-size: 12.5px; color: var(--ink-2); }
+.pf input { width: 78px; font: inherit; color: var(--ink); background: var(--surface); border: 1px solid var(--border);
+            border-radius: 6px; padding: 3px 6px; text-align: right; }
+.pf.chg span { color: var(--ink); font-weight: 600; }
+.pf.chg input { border-color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent); }
+.pf.kit { gap: 8px; }
+.btn { font: inherit; color: var(--ink); background: var(--surface); border: 1px solid var(--border); border-radius: 8px;
+       padding: 5px 10px; cursor: pointer; }
+.btn:hover { background: var(--chip); }
+.seg button:disabled { opacity: .45; cursor: default; }
+.grp { display: inline-flex; gap: 8px; align-items: center; }
+.enemies { display: flex; flex-wrap: wrap; gap: 8px; }
+.recs { margin: 4px 0 0; padding-left: 20px; display: grid; gap: 8px; }
+.subh { font-size: 13px; margin: 16px 0 8px; }
+.metagrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 220px), 1fr)); gap: 8px; }
+.metacard { border: 1px solid var(--border); border-radius: 8px; padding: 8px 10px; font-size: 12.5px; }
+.metacard ol { margin: 4px 0 0; padding-left: 18px; }
+.chip { display: inline-block; font-size: 11px; padding: 0 6px; border-radius: 99px; background: var(--chip); color: var(--ink-2);
+        border: 1px solid var(--border); margin-left: 6px; }
 
 .bar { display: inline-grid; grid-template-columns: 40px 40px; align-items: center; vertical-align: middle; margin-right: 6px;
        position: relative; }
@@ -149,6 +189,9 @@ svg text.axt { fill: var(--muted); }
 <section id="tab-heroes" hidden></section>
 <section id="tab-items" hidden></section>
 <section id="tab-counters" hidden></section>
+<section id="tab-counterbuy" hidden></section>
+<section id="tab-impact" hidden></section>
+<section id="tab-value" hidden></section>
 <section id="tab-fits" hidden></section>
 <section id="tab-matchups" hidden></section>
 <section id="tab-profiles" hidden></section>
@@ -156,6 +199,7 @@ svg text.axt { fill: var(--muted); }
 </div>
 <div id="tip" hidden></div>
 
+<script>/*__ITEMVALUE_JS__*/</script>
 <script>
 const PAYLOAD = /*__DATA__*/null;
 const META = PAYLOAD.meta, RAW = PAYLOAD.data;
@@ -208,7 +252,16 @@ function tierer(pop, get) {
 }
 // annotate rows with _t (6 = S ... 0 = F), tiered against `pop` (defaults to the rows themselves)
 const withTiers = (data, get, pop = data) => { const t = tierer(pop, get); return data.map(r => ({ ...r, _t: t(get(r)) })); };
-const badge = t => t == null ? "–" : `<span class="tier t${t}" title="Tier ${TIER_LETTERS[t]}">${TIER_LETTERS[t]}</span>`;
+// _t = 7 marks a core item (bought by most of a hero's players): own badge, outside the S..F ranking
+const CORE_T = 7;
+const badge = t => t == null ? "–" : t === CORE_T
+  ? `<span class="tier core" title="Core: bought by ≥${Math.round((META.core_buy_rate ?? 0.5) * 100)}% of this hero's players. Not ranked against situational items; see the on-time effect">CORE</span>`
+  : `<span class="tier t${t}" title="Tier ${TIER_LETTERS[t]}">${TIER_LETTERS[t]}</span>`;
+// tiers among situational items only; core rows get CORE_T
+const withCoreTiers = (data, get) => { const t = tierer(data.filter(r => !r.core), get);
+  return data.map(r => ({ ...r, _t: r.core ? CORE_T : t(get(r)) })); };
+const sgn = (v, d = 1) => v == null || !isFinite(v) ? "–" : (v > 0 ? "+" : "") + (v * 100).toFixed(d) + "%";
+const sgnc = (v, d = 1, good = 1) => v == null || !isFinite(v) ? "–" : `<span class="${v * good > 0 ? "pos" : v * good < 0 ? "negv" : ""}">${sgn(v, d)}</span>`;
 const TIER_COL = (what) => ({ key: "_t", label: "Tier", l: 1, fmt: badge,
   tip: `Relative tier by ${what} within this list: S ≥ +1.5 SD from the median, A ≥ +0.9, B ≥ +0.3, C within ±0.3, D, E, F mirror below` });
 const tierLegend = () => `<span class="legend" title="Relative tiers: distance from the median of this view, in standard deviations">Tier ${
@@ -300,11 +353,20 @@ function scatterPlot(el, data, o) {
   for (const t of niceTicks(y0, y1, 6)) s += `<line x1="${m.l}" x2="${W - m.r}" y1="${Y(t)}" y2="${Y(t)}" stroke="var(--grid)"/><text x="${m.l - 6}" y="${Y(t) + 4}" text-anchor="end">${o.yTick(t)}</text>`;
   for (const t of niceTicks(x0, x1, Math.max(4, Math.round(W / 110)))) s += `<line x1="${X(t)}" x2="${X(t)}" y1="${m.t}" y2="${H - m.b}" stroke="var(--grid)" stroke-dasharray="2 4"/><text x="${X(t)}" y="${H - m.b + 16}" text-anchor="middle">${o.xTick(t)}</text>`;
   if (o.ref != null) s += `<line x1="${m.l}" x2="${W - m.r}" y1="${Y(o.ref)}" y2="${Y(o.ref)}" stroke="var(--axis)" stroke-width="1.5"/>`;
+  if (o.xRef != null && o.xRef > x0 && o.xRef < x1) s += `<line x1="${X(o.xRef)}" x2="${X(o.xRef)}" y1="${m.t}" y2="${H - m.b}" stroke="var(--axis)" stroke-width="1.5"/>`;
+  if (o.diag) { const a = Math.max(x0, y0), b = Math.min(x1, y1);   // y = x
+    if (b > a) s += `<line x1="${X(a)}" y1="${Y(a)}" x2="${X(b)}" y2="${Y(b)}" stroke="var(--axis)" stroke-dasharray="5 4" stroke-width="1.5"/>`; }
   s += `<text class="axt" x="${W - m.r}" y="${H - 6}" text-anchor="end">${esc(o.xTitle)} →</text><text class="axt" x="${m.l}" y="${m.t - 6}">↑ ${esc(o.yTitle)}</text>`;
   const pts = data.map((d, i) => ({ d, i, px: X(o.x(d)), py: Y(o.y(d)), r: o.r ? o.r(d) : 5, t: o.tier(d) }));
   // big points first so small ones stay visible on top
-  for (const p of [...pts].sort((a, b) => b.r - a.r))
-    s += `<circle cx="${p.px}" cy="${p.py}" r="${p.r}" fill="${p.t == null ? "var(--t3-dot)" : p.t === 3 ? "var(--t3-dot)" : `var(--t${p.t})`}" stroke="var(--surface)" stroke-width="2"/>`;
+  for (const p of [...pts].sort((a, b) => b.r - a.r)) {
+    if (p.t === CORE_T) {   // core item: hollow ring, outside the tier colors
+      s += `<circle cx="${p.px}" cy="${p.py}" r="${p.r + 1}" fill="var(--surface)" stroke="var(--ink)" stroke-width="2"/>`;
+      continue;
+    }
+    const fill = o.fill ? o.fill(p.d) : p.t == null || p.t === 3 ? "var(--t3-dot)" : `var(--t${p.t})`;
+    s += `<circle cx="${p.px}" cy="${p.py}" r="${p.r}" fill="${fill}" stroke="var(--surface)" stroke-width="2"/>`;
+  }
   // labels: notable first (by distance from the middle), greedy placement around each point
   const labelAll = !!o.labelAll, boxes = [];
   const ov = (a, b) => a.x1 > b.x0 && a.x0 < b.x1 && a.y1 > b.y0 && a.y0 < b.y1;
@@ -372,8 +434,9 @@ const flags = r => (r.underused_proven ? '<span class="flag" title="Clearly posi
   (r.underused_predicted && !r.underused_proven ? '<span class="flag" title="Heroes with a similar profile benefit; rarely bought on this hero">predicted</span>' : "");
 
 // ---------- tabs
-const TABS = [["overview", "Overview"], ["heroes", "Heroes"], ["items", "Items"], ["counters", "Item counters"],
-              ["fits", "Hero × Item"], ["matchups", "Hero matchups"], ["profiles", "Playstyle profiles"], ["method", "Method"]];
+const TABS = [["overview", "Overview"], ["heroes", "Heroes"], ["items", "Items"], ["counters", "Item counters"], ["counterbuy", "Counterbuy planner"],
+              ["impact", "Item impact"], ["value", "Item value"], ["fits", "Hero × Item"], ["matchups", "Hero matchups"],
+              ["profiles", "Playstyle profiles"], ["method", "Method"]];
 const tabsEl = document.getElementById("tabs");
 tabsEl.innerHTML = TABS.map(([k, l]) => `<button role="tab" data-t="${k}" aria-selected="${k === state.tab}">${l}</button>`).join("");
 tabsEl.onclick = e => { const b = e.target.closest("button"); if (!b) return; state.tab = b.dataset.t; render(); };
@@ -474,31 +537,49 @@ function bindItemFilter(el, tab, redraw) {
 
 function renderItems(el) {
   const heroOpts = [{ v: "general", label: "General (all heroes)", sep: 1 }, ...heroList()];
-  el.innerHTML = `<div class="toolbar"><span class="lbl">Buyer</span><span id="ih"></span>${itemFilterBar("items")}</div>
-    <div class="card"><h2 id="ich">Item value vs purchase time</h2><p class="why" id="icw"></p>
-      <div class="toolbar">${labelToggle("items", "items")}<span class="sub">Point size = purchases</span><span class="grow"></span>${tierLegend()}</div><div id="isc"></div></div>
-    <div class="card"><h2 id="ith">Item effects</h2><div id="itb"></div><p class="note" id="itn"></p></div>`;
-  combo(el.querySelector("#ih"), heroOpts, state.itemHero, v => { state.itemHero = v; renderItems(el); }, { label: "Buyer hero" });
   const general = state.itemHero === "general";
   const heroName = general ? null : heroList().find(h => String(h.v) === String(state.itemHero))?.label;
+  const coreTxt = `bought by ≥${Math.round((META.core_buy_rate ?? 0.5) * 100)}% of ${esc(heroName)} players`;
+  el.innerHTML = `<div class="toolbar"><span class="lbl">Buyer</span><span id="ih"></span>${itemFilterBar("items")}</div>
+    ${general ? "" : `<div class="card"><h2>Core build — ${esc(heroName)}</h2><p class="why">Items ${coreTxt}, in typical buy order.
+      A core item's win delta is ~0 by construction (it is most of its own baseline), so instead: at the first stats tick after its median buy time,
+      players who already have it vs players who do not, each against the win chance their game state predicts.</p><div id="icore"></div></div>`}
+    <div class="card"><h2 id="ich">Item value vs purchase time</h2><p class="why" id="icw"></p>
+      <div class="toolbar">${labelToggle("items", "items")}<span class="sub">Point size = purchases</span><span class="grow"></span>${tierLegend()}${general ? "" : '<span class="legend"><span class="ring"></span>Core</span>'}</div><div id="isc"></div></div>
+    <div class="card"><h2 id="ith">Item effects</h2><div id="itb"></div><p class="note" id="itn"></p></div>`;
+  combo(el.querySelector("#ih"), heroOpts, state.itemHero, v => { state.itemHero = v; renderItems(el); }, { label: "Buyer hero" });
   const draw = () => {
     const keep = filter();
     const slotOf = new Map(rows("item_effects").map(r => [r.item_id, r.slot]));
     let pop, gy;
     if (general) { pop = inScope("item_effects"); gy = r => r.effect; }
     else { pop = inScope("hero_item_fit").filter(r => String(r.hero_id) === String(state.itemHero)).map(r => ({ ...r, slot: slotOf.get(r.item_id) })); gy = r => r.effect_shrunk; }
-    const all = withTiers(pop, gy), data = all.filter(keep);
+    const all = general ? withTiers(pop, gy) : withCoreTiers(pop, gy), data = all.filter(keep);
+    if (!general) {
+      const core = data.filter(r => r.core).sort((a, b) => (a.median_buy_min ?? 99) - (b.median_buy_min ?? 99));
+      table(el.querySelector("#icore"), core.map((r, i) => ({ ...r, order: i + 1 })), [
+        { key: "order", label: "#", l: 1 }, { key: "name", label: "Item", l: 1 }, { key: "slot", label: "Slot type", l: 1 },
+        { key: "tier", label: "Shop", fmt: shop }, { key: "buy_rate", label: "Bought", fmt: pct },
+        { key: "median_buy_min", label: "Buy min", fmt: v => num(v, 1) },
+        { key: "landmark_s", label: "Checked at", fmt: v => v == null ? "–" : num(v / 60) + " min", tip: "Stats tick at which owners and non-owners are compared" },
+        { key: "on_time_rate", label: "Have it by then", fmt: pct },
+        { key: "on_time_effect", label: "On-time effect", bar: 1, fmt: (v, r) => v == null ? "–" : `${pp(v)} <span class="sub">±${(1.96 * r.on_time_se * 100).toFixed(1)}</span>`,
+          tip: "Win-rate surplus of players who own it at the check vs those who do not, both against their game-state prediction. Large = falling behind on this item is costly" },
+        { key: "effect_shrunk", label: "Win delta", fmt: pp, tip: "The usual item effect (vs other items of its tier), shown for reference; near 0 for core items by construction" },
+        { key: "on_time_q", label: "q", fmt: qfmt }], { sort: "order", desc: false, height: "360px" });
+    }
     el.querySelector("#ich").textContent = general ? "Item value vs purchase time — all heroes" : `Item value vs purchase time — ${heroName}`;
     el.querySelector("#icw").textContent = general
       ? "Each item's state-adjusted effect (all buyers) against the median minute it is bought. Above the line = better than other items of its shop tier bought at the same time."
-      : `Effect when bought on ${heroName} (shrunk toward the item's average when the sample is small) against the median minute ${heroName} players buy it.`;
+      : `Effect when bought on ${heroName} (shrunk toward the item's average when the sample is small) against the median minute ${heroName} players buy it. Rings are core items, tiered separately.`;
     const pts = data.filter(d => d.median_buy_min != null && gy(d) != null);
     const nset = notableSet(pts, gy);
     const plot = () => scatterPlot(el.querySelector("#isc"), pts, {
       x: d => d.median_buy_min, y: gy, label: d => d.name, tier: d => d._t, ref: 0, r: sizeBy(pts, d => d.n),
       xTick: minTick, yTick: ppTick, xTitle: "Typical purchase time (median minute)", yTitle: general ? "Item effect, pp" : `Effect on ${heroName}, pp`,
       notable: d => nset.has(d), labelAll: state.labelAll.items, height: state.labelAll.items ? 640 : 440,
-      tip: d => `${badge(d._t)} <b>${esc(d.name)}</b> · ${shop(d.tier)} ${esc(d.slot || "")}<br>Effect ${pp(gy(d))} · bought ~${num(d.median_buy_min, 1)} min<br>${num(d.n)} purchases${general ? ` · helps ${pct(d.heroes_positive)} of heroes` : ` · ${pct(d.buy_rate)} of ${esc(heroName)} players`}` });
+      tip: d => `${badge(d._t)} <b>${esc(d.name)}</b> · ${shop(d.tier)} ${esc(d.slot || "")}<br>Effect ${pp(gy(d))} · bought ~${num(d.median_buy_min, 1)} min<br>${num(d.n)} purchases${general ? ` · helps ${pct(d.heroes_positive)} of heroes` : ` · ${pct(d.buy_rate)} of ${esc(heroName)} players`}` +
+        (d.core && d.on_time_effect != null ? `<br>On-time effect ${pp(d.on_time_effect)} (has it by ${num(d.landmark_s / 60)} min: ${pct(d.on_time_rate)})` : "") });
     bindLabelToggle(el, "items", plot); plot();
     if (general) {
       el.querySelector("#ith").textContent = "Item effects — all heroes";
@@ -509,16 +590,19 @@ function renderItems(el) {
         { key: "expected_win_rate", label: "Expected", fmt: pct, tip: "Win rate the state model predicted at purchase" },
         { key: "effect", label: "Effect", fmt: (v, r) => `${pp(v)} <span class="sub">±${(1.96 * r.effect_se * 100).toFixed(1)}</span>`, bar: 1 },
         { key: "effect_per_1k_souls", label: "per 1k souls", fmt: pp },
-        { key: "heroes_positive", label: "Breadth", fmt: pct }, { key: "median_buy_min", label: "Buy min", fmt: v => num(v, 1) },
+        { key: "heroes_positive", label: "Breadth", fmt: pct },
+        { key: "core_heroes", label: "Core on", fmt: v => v ? `${num(v)} hero${v === 1 ? "" : "es"}` : "–", tip: "Heroes on which this item is core (bought by most players); its effect there is ~0 by construction" },
+        { key: "median_buy_min", label: "Buy min", fmt: v => num(v, 1) },
         { key: "sold_rate", label: "Sold", fmt: pct }, { key: "upgraded_rate", label: "Upgraded", fmt: pct },
         { key: "q_value", label: "q", fmt: qfmt, tip: "FDR-adjusted p-value" }], { sort: "effect" });
     } else {
       el.querySelector("#ith").textContent = `Item effects on ${heroName}`;
-      el.querySelector("#itn").textContent = "Hero-specific = effect on this hero minus the item's average effect. See the Hero × Item tab for profile-predicted fits.";
+      el.querySelector("#itn").textContent = "Tiers rank situational items only; CORE items are listed in the core build above. Hero-specific = effect on this hero minus the item's average effect. Dmg dealt / taken Δ = change in this hero's per-minute hero damage dealt / taken from the stats interval before to the one after the purchase, vs the same hero buying another item of that tier at the same time (Item impact tab). See Hero × Item for profile-predicted fits.";
       table(el.querySelector("#itb"), data, [
-        TIER_COL(`effect on ${heroName}`), { key: "name", label: "Item", l: 1 }, { key: "slot", label: "Slot type", l: 1 }, { key: "tier", label: "Shop", fmt: shop },
+        { ...TIER_COL(`effect on ${heroName} (situational items)`) }, { key: "name", label: "Item", l: 1 }, { key: "slot", label: "Slot type", l: 1 }, { key: "tier", label: "Shop", fmt: shop },
         { key: "n", label: "Buys", fmt: v => num(v) }, { key: "buy_rate", label: "Bought", fmt: pct },
         { key: "effect_shrunk", label: "Effect on hero", fmt: pp, bar: 1 }, { key: "hero_specific", label: "Hero-specific", fmt: pp, bar: 1 },
+        { key: "out_dmg_out_pct", label: "Dmg dealt Δ", fmt: v => sgnc(v) }, { key: "out_dmg_taken_pct", label: "Dmg taken Δ", fmt: v => sgnc(v, 1, -1) },
         { key: "median_buy_min", label: "Buy min", fmt: v => num(v, 1) }, { key: "underused_proven", label: "Underused", l: 1, fmt: (v, r) => flags(r) }],
         { sort: "effect_shrunk" });
     }
@@ -536,7 +620,8 @@ function renderCounters(el) {
         <button data-m="general" aria-pressed="${state.ctMode === "general"}">General (all enemies)</button></div>
         ${labelToggle("counters", "items")}<span class="sub">Point size = purchases</span><span class="grow"></span>${tierLegend()}</div><div id="csc"></div></div>
     <div class="card"><h2>What counters ${esc(name)}?</h2><p class="why">Items ranked by how much more they are worth when ${esc(name)} is on the enemy team, with the kill-share check.</p><div id="ctb"></div>
-    <p class="note">Kill odds: among kills by holders vs non-holders on the same side, same match and 5-minute window, the odds the victim is this hero (×1 = no preference). Protection: among deaths of holders vs non-holders, the odds the killer is this hero (below ×1 = the item protects against them).</p></div>`;
+    <p class="note">Kill odds: among kills by holders vs non-holders on the same side, same match and 5-minute window, the odds the victim is this hero (×1 = no preference). Protection: among deaths of holders vs non-holders, the odds the killer is this hero (below ×1 = the item protects against them).
+    ${esc(name)} dmg / heal Δ: what happens to the enemy's own output right after you buy (stats interval before vs after), compared with buying another item of the same tier at the same time; unlike the win effect it does not suffer from counter-buys being made from behind. CC is not recorded in the match data.</p></div>`;
   combo(el.querySelector("#ch"), heroList(), sel, v => { state.counterHero = v; renderCounters(el); }, { label: "Enemy hero" });
   el.querySelector("#cmode").onclick = e => { const b = e.target.closest("button"); if (!b) return; state.ctMode = b.dataset.m; renderCounters(el); };
   const hid = Number(sel);
@@ -564,7 +649,9 @@ function renderCounters(el) {
     xTick: minTick, yTick: ppTick, xTitle: "Typical purchase time (median minute)", yTitle: general ? "Item effect, pp" : `Effect vs ${name}, pp`,
     notable: p => nset.has(p), labelAll: state.labelAll.counters, height: state.labelAll.counters ? 640 : 420,
     tip: p => `${badge(p._t)} <b>${esc(p.item)}</b> · ${shop(p.tier)} ${esc(p.slot || "")}<br>${general ? "Effect" : `Effect vs ${esc(name)}`} ${pp(gy(p))} · bought ~${num(p.median_buy_min, 1)} min` +
-      (general ? `<br>${num(p.n)} purchases` : `<br>Extra vs other enemies ${pp(p.delta_shrunk)} · kill odds ${ratio(p.kor)} · protection ${ratio(p.dor)}<br>${num(p.n)} purchases vs ${esc(name)}`) });
+      (general ? `<br>${num(p.n)} purchases` : `<br>Extra vs other enemies ${pp(p.delta_shrunk)} · kill odds ${ratio(p.kor)} · protection ${ratio(p.dor)}` +
+        (p.e_dmg_pct != null ? `<br>${esc(name)}'s damage after purchase ${sgn(p.e_dmg_pct)} · healing ${sgn(p.e_heal_pct)}` : "") +
+        `<br>${num(p.n)} purchases vs ${esc(name)}`) });
   bindLabelToggle(el, "counters", plot); plot();
 
   table(el.querySelector("#ctb"), d.filter(keep), [
@@ -572,10 +659,525 @@ function renderCounters(el) {
     { key: "tier", label: "Shop", fmt: shop }, { key: "n", label: "Buys vs hero", fmt: v => num(v) },
     { key: "delta_shrunk", label: "Extra effect", fmt: pp, bar: 1, tip: "Effect when this hero is an enemy minus effect otherwise (shrunk)" },
     { key: "effect_with", label: "Effect vs hero", fmt: pp }, { key: "kor", label: "Kill odds", fmt: ratio },
-    { key: "dor", label: "Protection", fmt: ratio }, { key: "median_buy_min", label: "Buy min", fmt: v => num(v, 1) },
+    { key: "dor", label: "Protection", fmt: ratio },
+    { key: "e_dmg_pct", label: `${name} dmg Δ`, fmt: v => sgnc(v, 1, -1),
+      tip: `Change in ${name}'s per-minute hero damage from the stats interval before to the one after the purchase, vs purchases of other items of that tier at the same time (negative = the item suppresses ${name})` },
+    { key: "e_heal_pct", label: `${name} heal Δ`, fmt: v => sgnc(v, 1, -1), tip: `Same for ${name}'s healing output` },
+    { key: "taken_delta_pct", label: "Your dmg taken Δ", fmt: v => sgnc(v, 1, -1),
+      tip: `Change in the buyer's damage taken after the purchase when ${name} is an enemy, minus the same change in games without ${name}` },
+    { key: "median_buy_min", label: "Buy min", fmt: v => num(v, 1) },
     { key: "q_value", label: "q", fmt: qfmt }], { sort: "delta_shrunk" });
   };
   const filter = bindItemFilter(el, "counters", draw); draw();
+}
+
+// ---------- counterbuy planner: the best counter items for your hero against a specific enemy comp
+const CB = META.counterbuy || {};
+const CB_W = [["delta", "Extra win effect when the hero is an enemy"], ["kill_odds", "Kill odds against the hero"],
+  ["protection", "Protection from the hero"], ["enemy_dmg", "Hero's damage drops after the purchase"],
+  ["enemy_heal", "Hero's healing drops after the purchase"], ["dmg_taken", "Your damage taken from the hero drops"]];
+const CB_P = [["threat_per_sd", "Extra weight per SD an enemy counters your hero", 0.1],
+  ["damage_mix_weight", "Damage-type match of bullet / spirit defense items", 0.1],
+  ["timing_tau_min", "Minutes late before a counter loses half its value", 1],
+  ["negative_factor", "Share of an item's penalty vs an enemy that counts", 0.1],
+  ["fit_weight", "Weight of the item's own effect on your hero", 0.25],
+  ["soul_vs_slot", "Value per slot (0) ↔ per soul (1)", 0.1]];
+const CB_LS = "dla.counterbuy.v1";
+const cbDef = k => k.startsWith("w.") ? (CB.weights || {})[k.slice(2)] ?? 0 : CB[k] ?? 0;
+const cbPar = k => state.cbP[k] ?? cbDef(k);
+function cbSave() { try { localStorage.setItem(CB_LS, JSON.stringify({ me: state.cbMe, enemies: state.cbEnemies, p: state.cbP, slots: state.cbSlots })); } catch { /* storage unavailable */ } }
+const ppc = (v, d = 1) => v == null || !isFinite(v) ? "–" : `<span class="${v > 0 ? "pos" : v < 0 ? "negv" : ""}">${v > 0 ? "+" : ""}${(v * 100).toFixed(d)}</span>`;
+// counter strength of each item against each enemy hero, in pp of win effect (memoised per scope + weights)
+let cbMemo = { key: null };
+function cbPairs() {
+  const W = Object.fromEntries(CB_W.map(([k]) => [k, cbPar("w." + k)]));
+  const key = scopeName() + state.hideLow + JSON.stringify(W);
+  if (cbMemo.key === key) return cbMemo;
+  const rows = inScope("item_counters");
+  const neg = v => v == null || !isFinite(v) ? null : -v;
+  const get = { delta: r => r.delta_shrunk, kill_odds: r => r.off_lor, protection: r => neg(r.def_lor),
+    enemy_dmg: r => neg(r.e_dmg_pct), enemy_heal: r => neg(r.e_heal_pct), dmg_taken: r => neg(r.taken_delta_pct) };
+  const sd = {};          // spread of each signal over all item x hero pairs (not centred: 0 stays "no effect")
+  for (const k in get) {
+    const v = rows.map(get[k]).filter(x => x != null && isFinite(x));
+    sd[k] = Math.sqrt(v.reduce((a, x) => a + x * x, 0) / Math.max(1, v.length)) || 1;
+  }
+  const pairs = new Map();
+  for (const r of rows) {
+    let z = 0; const parts = {};
+    for (const k in get) {
+      const v = get[k](r); if (v == null || !isFinite(v) || !W[k]) continue;
+      const p = W[k] * v / sd[k]; parts[k] = p * sd.delta; z += p;
+    }
+    pairs.set(r.item_id + "|" + r.enemy_hero, { c: z * sd.delta, parts, n: r.n });
+  }
+  const pos = [...pairs.values()].map(p => p.c).filter(c => c > 0).sort((a, b) => a - b);
+  const strong = pos[Math.floor(pos.length * 0.9)] || sd.delta;     // a "strong" counter (90th percentile)
+  return (cbMemo = { key, pairs, unit: sd.delta, strong });
+}
+// how much each enemy counters `me` (win-effect points; negative = bad for you) and the weight that gives it
+function cbThreats(me, enemies) {
+  const hc = inScope("hero_counters");
+  const sdM = Math.sqrt(hc.reduce((a, r) => a + (r.effect_shrunk || 0) ** 2, 0) / Math.max(1, hc.length)) || 1;
+  const mine = new Map(hc.filter(r => String(r.hero_a) === String(me)).map(r => [r.hero_b, r.effect_shrunk]));
+  return enemies.map(e => { const m = me != null ? mine.get(Number(e)) : null;
+    const threat = m != null ? Math.max(0, -m / sdM) : 0;
+    return { e: Number(e), matchup: m ?? null, threat, w: 1 + cbPar("threat_per_sd") * threat }; });
+}
+// each hero's power spike: the match length where its win rate is highest relative to other heroes
+const CB_BUCKETS = [["wr_<25m", 20], ["wr_25-35m", 30], ["wr_35-45m", 40], ["wr_45m+", 50]];
+function cbSpikes() {
+  const hs = inScope("hero_stats"), avg = {};
+  for (const [k] of CB_BUCKETS) { const v = hs.map(r => r[k]).filter(x => x != null); avg[k] = v.reduce((a, x) => a + x, 0) / Math.max(1, v.length); }
+  return new Map(hs.map(r => {
+    const rel = CB_BUCKETS.map(([k, m]) => [r[k] != null ? r[k] - avg[k] : null, m]).filter(([v]) => v != null);
+    if (!rel.length) return [r.hero_id, 32];
+    const lo = Math.min(...rel.map(([v]) => v));
+    const ws = rel.map(([v, m]) => [v - lo + 1e-4, m]), sw = ws.reduce((a, [w]) => a + w, 0);
+    return [r.hero_id, ws.reduce((a, [w, m]) => a + w * m, 0) / sw];
+  }));
+}
+// share of an enemy comp's damage that is spirit (ability) damage, weighted like the enemies, vs an average hero
+function cbMix(ew) {
+  const prof = new Map(rows("hero_profiles").map(r => [r.hero_id, r.ability_damage_share]));
+  const all = [...prof.values()].filter(x => x != null), avg = all.reduce((a, x) => a + x, 0) / Math.max(1, all.length);
+  let s = 0, sw = 0; for (const { e, w } of ew) { const v = prof.get(e); if (v != null) { s += w * v; sw += w; } }
+  return { comp: sw ? s / sw : avg, avg };
+}
+// score items against weighted enemies; need = remaining need per enemy (for the greedy set)
+function cbScore(items, ew, fitOf, need) {
+  const { pairs, unit } = cbPairs(), neg = cbPar("negative_factor"), fw = cbPar("fit_weight"), a = cbPar("soul_vs_slot");
+  const spikes = cbSpikes(), tau = Math.max(0.1, cbPar("timing_tau_min")), mw = cbPar("damage_mix_weight");
+  const mix = cbMix(ew), def = CB.defense || {};
+  const mixMult = id => { const d = def[String(id)]; if (!d || d === "both") return 1;
+    const rel = d === "spirit" ? (mix.comp - mix.avg) / mix.avg : ((1 - mix.comp) - (1 - mix.avg)) / (1 - mix.avg);
+    return Math.min(1.8, Math.max(0.5, 1 + mw * rel)); };
+  return items.map(it => {
+    let comp = 0, nCount = 0; const per = {}, late = {};
+    for (const { e, w } of ew) {
+      const p = pairs.get(it.item_id + "|" + e), c = p ? p.c : 0;
+      const spike = spikes.get(e) ?? 32, behind = Math.max(0, (it.buy_min ?? spike) - spike);
+      const tf = 1 / (1 + behind / tau);              // a counter that arrives after the enemy's spike is worth less
+      per[e] = p ? c : null; late[e] = tf;
+      comp += w * (need ? need.get(e) : 1) * tf * (c >= 0 ? c : neg * c);
+      if (c > 0.5 * unit) nCount++;
+    }
+    const stack = 1 + ((CB.team_stacking || {})[String(it.item_id)] || 0), mm = mixMult(it.item_id);
+    const fitRaw = fitOf(it.item_id), fit = fitRaw ?? 0, costF = Math.pow(Math.max(1, it.cost) / 3200, a);
+    return { ...it, per, late, comp: comp * stack * mm, stack, mix: mm, fit: fitRaw, n_countered: nCount,
+      refresh: (CB.refresh_only || []).includes(String(it.item_id)), score: (comp * stack * mm + fw * fit) / costF };
+  });
+}
+function renderCounterbuy(el) {
+  if (!state.cbInit) { let s = {}; try { s = JSON.parse(localStorage.getItem(CB_LS)) || {}; } catch { /* none */ }
+    state.cbMe = s.me ?? null; state.cbEnemies = s.enemies || [null, null, null, null, null, null];
+    state.cbP = s.p || {}; state.cbSlots = s.slots || CB.slots || 2; state.cbInit = true; }
+  const heroes = heroList(), hname = id => heroes.find(h => String(h.v) === String(id))?.label ?? "?";
+  const me = state.cbMe, enemies = [...new Set(state.cbEnemies.filter(x => x != null && x !== ""))].map(Number);
+  el.innerHTML = `<div class="toolbar"><span class="grp"><span class="lbl">Your hero</span><span id="cbme"></span></span>
+      <span class="grp"><span class="lbl">Counter slots</span><div class="seg" id="cbslots" role="group" aria-label="Counter slots">
+      ${[1, 2, 3].map(n => `<button data-n="${n}" aria-pressed="${n === state.cbSlots}">${n}</button>`).join("")}</div></span></div>
+    <div class="card"><h2>Enemy team</h2><p class="why">Pick the heroes you are playing against. Each one is weighted by how hard it counters your hero (Hero matchups); items are scored by how strongly they counter each of them.</p>
+      <div class="enemies" id="cbenemies">${state.cbEnemies.map((_, i) => `<span data-i="${i}"></span>`).join("")}</div>
+      <div class="toolbar" style="margin-top:10px"><button class="btn" id="cbclear" type="button">Clear enemies</button><span class="sub" id="cbthreat"></span></div></div>
+    <div class="card"><details class="model" id="cbdet" ${state.cbOpen ? "open" : ""}><summary><h2>Weights</h2><span class="sub" id="cbchg"></span></summary>
+      <div class="params"><h3>Counter strength vs one hero</h3>${CB_W.map(([k, lab]) => cbField("w." + k, lab, 0.1)).join("")}
+        <h3>Scoring</h3>${CB_P.map(([k, lab, step]) => cbField(k, lab, step)).join("")}</div>
+      <div class="toolbar" style="margin-top:10px"><button class="btn" id="cbreset" type="button">Reset weights</button></div>
+      <p class="note">Score = Σ over enemies of (enemy weight × counter strength × timing; penalties × the share above) × team-stacking bonus × damage-type match, plus the item's effect on your hero, divided by (cost / 3200)^(per-soul setting). Counter strength combines the Item counters tab's signals for that hero, each scaled to its spread over all item × hero pairs and expressed in pp of win effect. Defaults live in settings.yaml (counterbuy); edits are remembered on this device.</p>
+    </details></div>
+    <div class="card"><h2 id="cbrech">Recommended counterbuys</h2><p class="why" id="cbrecwhy"></p><div id="cbrec"></div></div>
+    <div class="card"><h2>All items against this comp</h2><div class="toolbar">${itemFilterBar("counterbuy")}</div><div id="cbtb"></div>
+      <p class="note">Columns per enemy: counter strength against that hero (pp of win effect; – = too few purchases against them). Countered = enemies it counters by at least half a typical counter. Stacks = bonus for items whose effect stacks when teammates buy them too: Healbane (confirmed) and passive resist-shred items, headshot debuffs included (believed to stack); active timed debuffs only refresh when a teammate reuses them and get no bonus. Online = typical purchase minute: a counter bought after an enemy's power spike (where its win rate is highest by match length) is worth less. Dmg-type × = bullet / spirit defense items scaled to the comp's damage mix. Core items for your hero counter without using an extra slot.</p></div>
+    <div class="card"><h2 id="cbmetah">Best all-around counters to the meta</h2><p class="why" id="cbmetawhy"></p><div id="cbmeta"></div>
+      <h3 class="subh">Top counters for each meta hero</h3><div class="metagrid" id="cbmetagrid"></div></div>`;
+
+  combo(el.querySelector("#cbme"), [{ v: "", label: "(any hero)", sep: true }, ...heroes], me ?? "", v => { state.cbMe = v === "" ? null : Number(v); cbSave(); renderCounterbuy(el); }, { label: "Your hero" });
+  el.querySelectorAll("#cbenemies [data-i]").forEach(h => { const i = +h.dataset.i;
+    combo(h, [{ v: "", label: "(empty)", sep: true }, ...heroes.filter(x => String(x.v) !== String(me))], state.cbEnemies[i] ?? "",
+      v => { state.cbEnemies[i] = v === "" ? null : Number(v); cbSave(); renderCounterbuy(el); }, { label: `Enemy ${i + 1}`, width: "180px" }); });
+  el.querySelector("#cbslots").onclick = e => { const b = e.target.closest("button"); if (!b) return; state.cbSlots = +b.dataset.n; cbSave(); renderCounterbuy(el); };
+  el.querySelector("#cbclear").onclick = () => { state.cbEnemies = [null, null, null, null, null, null]; cbSave(); renderCounterbuy(el); };
+  el.querySelector("#cbdet").ontoggle = e => { state.cbOpen = e.target.open; };
+  el.querySelector("#cbreset").onclick = () => { state.cbP = {}; cbSave(); renderCounterbuy(el); };
+  let timer;
+  el.querySelectorAll("input[data-cb]").forEach(inp => inp.oninput = () => {
+    const k = inp.dataset.cb, v = parseFloat(inp.value); if (!isFinite(v)) return;
+    if (Math.abs(v - cbDef(k)) < 1e-9) delete state.cbP[k]; else state.cbP[k] = v;
+    inp.closest(".pf").classList.toggle("chg", k in state.cbP); cbSave();
+    clearTimeout(timer); timer = setTimeout(draw, 150); });
+
+  const items = inScope("item_effects").map(r => ({ item_id: r.item_id, name: r.name, slot: r.slot, tier: r.tier, cost: r.cost, effect: r.effect, buy_min: r.median_buy_min }));
+  const fitRows = me != null ? new Map(inScope("hero_item_fit").filter(r => String(r.hero_id) === String(me)).map(r => [r.item_id, r])) : new Map();
+  const genEff = new Map(items.map(r => [r.item_id, r.effect]));
+  const fitOf = id => me != null ? (fitRows.get(id)?.effect_shrunk ?? null) : (genEff.get(id) ?? null);
+  const isCore = id => !!fitRows.get(id)?.core;
+  const draw = () => {
+    const nCh = Object.keys(state.cbP).length;
+    el.querySelector("#cbchg").textContent = nCh ? `${nCh} changed from the defaults` : "Defaults from settings.yaml";
+    const { unit, strong, pairs } = cbPairs();
+    const keep = filter();
+    // ---- this comp
+    const ew = cbThreats(me, enemies);
+    const spikes = cbSpikes(), mix = cbMix(ew);
+    el.querySelector("#cbthreat").innerHTML = !enemies.length ? "" : ew.map(t => `<span class="chip" title="${t.matchup == null ? "no matchup data" : `${esc(hname(me))} vs ${esc(hname(t.e))}: ${pp(t.matchup)} win effect`}; strongest around ${num(spikes.get(t.e), 0)} min (win rate by match length)">${esc(hname(t.e))}${me != null ? ` · ${t.matchup == null ? "–" : pp(t.matchup)} · ×${num(t.w, 2)}` : ""} · spike ~${num(spikes.get(t.e), 0)}m</span>`).join(" ")
+      + `<br><span class="sub">This comp deals ~${pct(mix.comp)} spirit / ${pct(1 - mix.comp)} gun damage (average hero ${pct(mix.avg)} spirit): spirit-defense items ×${num(Math.min(1.8, Math.max(0.5, 1 + cbPar("damage_mix_weight") * (mix.comp - mix.avg) / mix.avg)), 2)}, bullet-defense items ×${num(Math.min(1.8, Math.max(0.5, 1 + cbPar("damage_mix_weight") * (mix.avg - mix.comp) / (1 - mix.avg))), 2)}.</span>`;
+    if (!enemies.length) {
+      el.querySelector("#cbrecwhy").textContent = "Pick at least one enemy hero above.";
+      el.querySelector("#cbrec").innerHTML = ""; el.querySelector("#cbtb").innerHTML = '<div class="empty">Pick the enemy heroes to rank counter items.</div>';
+    } else {
+      const scored = cbScore(items, ew, fitOf).filter(r => enemies.some(e => r.per[e] != null));
+      // recommended set: greedy, each enemy's need shrinks once an item covers it; core items use no slot
+      const need = new Map(enemies.map(e => [e, 1])), picks = [];
+      const coreHits = scored.filter(r => isCore(r.item_id) && r.comp > 0).sort((a, b) => b.comp - a.comp);
+      for (const c of coreHits) for (const e of enemies) need.set(e, need.get(e) * (1 - 0.6 * Math.min(1, Math.max(0, c.per[e] ?? 0) / strong)));
+      for (let k = 0; k < state.cbSlots; k++) {
+        const cand = cbScore(items.filter(it => !isCore(it.item_id) && !picks.some(p => p.item_id === it.item_id)), ew, fitOf, need)
+          .filter(r => r.comp > 0).sort((a, b) => b.score - a.score)[0];
+        if (!cand) break;
+        picks.push(cand);
+        for (const e of enemies) need.set(e, need.get(e) * (1 - 0.6 * Math.min(1, Math.max(0, cand.per[e] ?? 0) / strong)));
+      }
+      const who = r => enemies.map(e => [e, r.per[e]]).filter(([, c]) => c != null && c > 0.5 * unit).sort((a, b) => b[1] - a[1])
+        .map(([e, c]) => `${esc(hname(e))} <span class="sub">${ppc(c)}</span>`).join(", ") || "<span class=\"sub\">no strong counter, value from breadth or fit</span>";
+      el.querySelector("#cbrech").textContent = `Recommended counterbuys (${state.cbSlots} slot${state.cbSlots > 1 ? "s" : ""})`;
+      el.querySelector("#cbrecwhy").textContent = `Picked one at a time: after each pick, the enemies it covers count less, so the set spreads over the comp.${me != null ? ` Items in ${hname(me)}'s core build are listed separately: they counter without an extra slot.` : ""}`;
+      el.querySelector("#cbrec").innerHTML = `<ol class="recs">${picks.map(r => `<li><b>${esc(r.name)}</b> <span class="sub">${shop(r.tier)} · ${num(r.cost)} souls · score ${pp(r.score)}${r.stack > 1 ? ` · stacks with teammates (+${Math.round((r.stack - 1) * 100)}%)` : ""}</span><br>Counters: ${who(r)}${r.fit ? `<br><span class="sub">Effect on ${me != null ? esc(hname(me)) : "the average hero"}: ${pp(r.fit)}</span>` : ""}</li>`).join("") || "<li class=\"sub\">No item clearly counters this comp.</li>"}</ol>`
+        + (coreHits.length ? `<p class="note">Already in ${esc(hname(me))}'s core build and countering this comp: ${coreHits.slice(0, 5).map(r => `<b>${esc(r.name)}</b> (${who(r)})`).join("; ")}.</p>` : "");
+      const withPer = (rs, ts, p) => rs.map(r => ({ ...r, ...Object.fromEntries(ts.map(t => [p + t.e, r.per[t.e]])) }));
+      table(el.querySelector("#cbtb"), withTiers(withPer(scored.filter(keep), ew, "e"), r => r.score), [
+        TIER_COL("score against this comp"), { key: "name", label: "Item", l: 1, fmt: (v, r) => `${esc(v)}${isCore(r.item_id) ? ' <span class="chip">core</span>' : ""}${picks.some(p => p.item_id === r.item_id) ? ' <span class="chip">pick</span>' : ""}${r.refresh ? ' <span class="chip" title="Active timed debuff: a teammate using the same item only refreshes the timer (no team-stacking bonus)">refresh only</span>' : ""}` },
+        { key: "tier", label: "Shop", fmt: shop }, { key: "cost", label: "Cost", fmt: v => num(v) },
+        { key: "score", label: "Score", fmt: pp, bar: 1, tip: "Weighted counter strength over the comp (+ effect on your hero), per slot/soul" },
+        { key: "comp", label: "Comp counter", fmt: pp, tip: "Σ enemy weight × counter strength (× stacking bonus)" },
+        { key: "n_countered", label: "Countered", fmt: v => v ? `${v}/${enemies.length}` : "–" },
+        ...ew.map(t => ({ key: "e" + t.e, label: hname(t.e), fmt: (v, r) => ppc(r.per[t.e]), tip: `Counter strength vs ${hname(t.e)} (weight ×${num(t.w, 2)})` })),
+        { key: "fit", label: me != null ? `Effect on ${hname(me)}` : "Effect", fmt: pp, tip: "The item's own effect on your hero (Items tab); – = too few purchases on this hero" },
+        { key: "buy_min", label: "Online", fmt: v => v == null ? "–" : num(v, 0) + "m", tip: "Typical purchase minute; counters that arrive after an enemy's power spike are discounted" },
+        { key: "mix", label: "Dmg-type ×", fmt: v => v === 1 ? "–" : `×${num(v, 2)}`, tip: "Bullet / spirit defense items: scaled by how much of that damage type this comp deals" },
+        { key: "stack", label: "Stacks", fmt: v => v > 1 ? `+${Math.round((v - 1) * 100)}%` : "–" }], { sort: "score" });
+    }
+    // ---- the meta
+    const nMeta = CB.meta_heroes || 12;
+    const meta = [...inScope("hero_stats")].filter(r => String(r.hero_id) !== String(me)).sort((a, b) => (b.pick_rate || 0) - (a.pick_rate || 0)).slice(0, nMeta);
+    const avgPick = meta.reduce((a, r) => a + (r.pick_rate || 0), 0) / Math.max(1, meta.length);
+    const mt = cbThreats(me, meta.map(r => r.hero_id)).map((t, i) => ({ ...t, w: t.w * (meta[i].pick_rate || 0) / (avgPick || 1) }));
+    el.querySelector("#cbmetah").textContent = `Best all-around counters to the meta (top ${meta.length} picks)`;
+    el.querySelector("#cbmetawhy").textContent = `The ${meta.length} most-picked heroes in this scope, each weighted by its pick rate${me != null ? ` and by how hard it counters ${hname(me)}` : ""}; same scoring as above.`;
+    const ms = cbScore(items, mt, fitOf).filter(r => meta.some(m => r.per[m.hero_id] != null));
+    const metaRows = ms.filter(keep).map(r => ({ ...r, ...Object.fromEntries(mt.map(t => ["m" + t.e, r.per[t.e]])) }));
+    table(el.querySelector("#cbmeta"), withTiers(metaRows, r => r.score), [
+      TIER_COL("score against the meta"), { key: "name", label: "Item", l: 1 }, { key: "tier", label: "Shop", fmt: shop },
+      { key: "cost", label: "Cost", fmt: v => num(v) }, { key: "score", label: "Score", fmt: pp, bar: 1 },
+      { key: "n_countered", label: "Countered", fmt: v => v ? `${v}/${meta.length}` : "–" },
+      ...mt.map((t, i) => ({ key: "m" + t.e, label: hname(t.e), fmt: (v, r) => ppc(r.per[t.e]), tip: `${hname(t.e)}: pick rate ${pct(meta[i].pick_rate)}, weight ×${num(t.w, 2)}` })),
+      { key: "stack", label: "Stacks", fmt: v => v > 1 ? `+${Math.round((v - 1) * 100)}%` : "–" }], { sort: "score", height: "420px" });
+    const a = cbPar("soul_vs_slot");
+    el.querySelector("#cbmetagrid").innerHTML = meta.map(m => {
+      const top = items.map(it => ({ it, c: pairs.get(it.item_id + "|" + m.hero_id)?.c })).filter(x => x.c != null && x.c > 0)
+        .map(x => ({ ...x, s: x.c / Math.pow(Math.max(1, x.it.cost) / 3200, a) })).sort((p, q) => q.s - p.s).slice(0, 3);
+      return `<div class="metacard"><b>${esc(m.hero)}</b> <span class="sub">${pct(m.pick_rate)} picked</span><ol>${top.map(x => `<li>${esc(x.it.name)} <span class="sub">${shop(x.it.tier)} · ${ppc(x.c)}</span></li>`).join("") || "<li class=\"sub\">–</li>"}</ol></div>`; }).join("");
+  };
+  const filter = bindItemFilter(el, "counterbuy", draw); draw();
+}
+function cbField(k, lab, step) {
+  const def = cbDef(k), v = state.cbP[k] ?? def;
+  return `<label class="pf ${k in state.cbP ? "chg" : ""}" title="Default ${def}"><span>${esc(lab)}</span><input type="number" data-cb="${k}" step="${step}" min="0" value="${v}"></label>`;
+}
+
+// ---------- item impact: own output change after buying, and win effect by game state at purchase
+const IMPACT = [["dmg_out", "Dmg dealt", 1], ["bullet_out", "Bullet dmg", 1], ["ability_out", "Ability dmg", 1],
+                ["dmg_taken", "Dmg taken", -1], ["mitigated", "Mitigated", 1], ["healing", "Healing", 1],
+                ["self_heal", "Self heal", 1], ["heal_prevented", "Heal prevented", 1], ["deaths", "Deaths", -1], ["kills", "Kills", 1]];
+const IMPACT_KIND = { snowball: ["Snowball", "var(--c2)", "Clearly better when bought ahead than from behind"],
+                      comeback: ["Comeback", "var(--c1)", "Clearly better when bought from behind than ahead"] };
+function renderImpact(el) {
+  const all = inScope("item_impact");
+  const avail = IMPACT.filter(([k]) => all.some(r => r[k + "_pct"] != null));
+  state.impMetric = avail.some(([k]) => k === state.impMetric) ? state.impMetric : avail[0]?.[0];
+  el.innerHTML = `<div class="toolbar">${itemFilterBar("impact")}<span class="lbl">Rank by</span>
+      <select id="imet" aria-label="Rank by">${avail.map(([k, l]) => `<option value="${k}" ${k === state.impMetric ? "selected" : ""}>${l} Δ</option>`).join("")}</select></div>
+    <div class="card"><h2>Does it only work when you are already winning?</h2>
+      <p class="why">State-adjusted win effect when the item is bought from behind (x, predicted win chance &lt; 40%) against when it is bought ahead (y, &gt; 60%).
+      Above the dashed diagonal = worth more when ahead (snowball); below = worth more from behind (comeback / stabilising).</p>
+      <div class="toolbar">${labelToggle("impact", "items")}<span class="sub">Point size = purchases</span><span class="grow"></span>
+        <span class="legend">${Object.values(IMPACT_KIND).map(([l, c, t]) => `<span class="sw" style="background:${c}" title="${t}"></span>${l}`).join("")}<span class="sw" style="background:var(--t3-dot)"></span>Either</span></div>
+      <div id="imsc"></div></div>
+    <div class="card"><h2>What changes after buying</h2>
+      <p class="why">Per-minute rates in the stats interval before the purchase vs the interval after it (the purchase interval itself skipped), relative to the same hero buying another item of the same shop tier at the same time — so natural growth with time and souls cancels out. Shown as % of that baseline's post-purchase rate.</p>
+      <div id="imtb"></div>
+      <p class="note">Damage taken often rises after defensive items: their holders stay in fights longer. Read it together with deaths and damage mitigated. Effects of items bought together in one shop visit overlap. Crowd control applied is not recorded in the match data.
+      Starting items bought before the first stats tick (3:00) have no "before" window.</p></div>`;
+  el.querySelector("#imet").onchange = e => { state.impMetric = e.target.value; renderImpact(el); };
+  const kind = r => r.snowball == null || !r.snowball_se ? null : r.snowball / r.snowball_se > 2 ? "snowball" : r.snowball / r.snowball_se < -2 ? "comeback" : null;
+  const good = (IMPACT.find(([k]) => k === state.impMetric) || [0, 0, 1])[2];
+  const gm = r => r[state.impMetric + "_pct"] == null ? null : r[state.impMetric + "_pct"] * good;
+  const tiered = withTiers(all, gm);
+  const draw = () => {
+    const keep = filter();
+    const pts = tiered.filter(keep).filter(r => r.win_effect_behind != null && r.win_effect_ahead != null);
+    const srt = [...pts].sort((a, b) => Math.abs(b.snowball ?? 0) - Math.abs(a.snowball ?? 0));
+    const nset = new Set(srt.slice(0, 12));
+    const plot = () => scatterPlot(el.querySelector("#imsc"), pts, {
+      x: r => r.win_effect_behind, y: r => r.win_effect_ahead, label: r => r.name, tier: () => null,
+      fill: r => (IMPACT_KIND[kind(r)] || [0, "var(--t3-dot)"])[1], ref: 0, xRef: 0, diag: 1,
+      r: sizeBy(pts, r => (r.win_n_behind || 0) + (r.win_n_ahead || 0)),
+      xTick: ppTick, yTick: ppTick, xTitle: "Win effect when bought from behind, pp", yTitle: "Win effect when bought ahead, pp",
+      notable: r => nset.has(r), labelAll: state.labelAll.impact, height: state.labelAll.impact ? 640 : 460,
+      tip: r => `<b>${esc(r.name)}</b> · ${shop(r.tier)} ${esc(r.slot || "")}${kind(r) ? ` · ${IMPACT_KIND[kind(r)][0]}` : ""}<br>` +
+        `Behind ${pp(r.win_effect_behind)} · even ${pp(r.win_effect_even)} · ahead ${pp(r.win_effect_ahead)}<br>` +
+        `Ahead − behind ${pp(r.snowball)} ±${(1.96 * (r.snowball_se || 0) * 100).toFixed(1)}<br>` +
+        `Dmg dealt ${sgn(r.dmg_out_pct)} · taken ${sgn(r.dmg_taken_pct)} · deaths ${sgn(r.deaths_pct)}` });
+    bindLabelToggle(el, "impact", plot); plot();
+    const lab = (IMPACT.find(([k]) => k === state.impMetric) || [0, ""])[1];
+    table(el.querySelector("#imtb"), tiered.filter(keep), [
+      TIER_COL(`${lab} change (direction-adjusted)`), { key: "name", label: "Item", l: 1 }, { key: "slot", label: "Slot type", l: 1 },
+      { key: "tier", label: "Shop", fmt: shop }, { key: "n", label: "Purchases", fmt: v => num(v), tip: "Purchases with a before and an after window" },
+      ...avail.map(([k, l, g]) => ({ key: k + "_pct", label: `${l} Δ`, fmt: (v, r) => `${sgnc(v, 1, g)}${r[k + "_pct_se"] != null && k === state.impMetric ? ` <span class="sub">±${(1.96 * r[k + "_pct_se"] * 100).toFixed(1)}</span>` : ""}`,
+        tip: `${l}: change in per-minute rate after the purchase vs the same-tier baseline, % of baseline` })),
+      { key: "win_effect_behind", label: "Win (behind)", fmt: pp }, { key: "win_effect_even", label: "Win (even)", fmt: pp },
+      { key: "win_effect_ahead", label: "Win (ahead)", fmt: pp },
+      { key: "snowball", label: "Ahead − behind", bar: 1, fmt: (v, r) => v == null ? "–" : `${pp(v)}${kind(r) ? ` <span class="sub">${IMPACT_KIND[kind(r)][0]}</span>` : ""}`,
+        tip: "Win effect when bought ahead minus when bought from behind. Positive = snowball item" }],
+      { sort: state.impMetric + "_pct", desc: good > 0 });
+  };
+  const filter = bindItemFilter(el, "impact", draw); draw();
+}
+
+// ---------- item value from game data only (no match data), computed live by itemvalue.js
+const IVI = META.item_value;    // inputs for the engine: item cards, hero stats, rules, default assumptions
+const VGROUPS = [["Defense", ["ehp", "heal"], "var(--c1)"], ["Weapon", ["weapon", "clip", "bullet_speed", "melee"], "var(--c2)"],
+                 ["Recovery", ["recovery"], "var(--c3)"], ["Control", ["slow", "hard_cc", "heal_denied"], "var(--c4)"],
+                 ["Spirit", ["spirit"], "var(--c5)"], ["Utility", ["move", "sprint", "stamina", "range", "charges", "status_resist", "souls"], "var(--c6)"]];
+const CH_LABEL = { ehp: "Effective HP", heal: "In-fight healing", recovery: "Out-of-combat recovery", weapon: "Weapon damage",
+  spirit: "Spirit damage", melee: "Melee damage", heal_denied: "Enemy healing denied", slow: "Slow", hard_cc: "Stun / silence / disarm",
+  clip: "Clip size", bullet_speed: "Bullet speed", move: "Move speed", sprint: "Sprint speed", stamina: "Stamina", range: "Ability range",
+  charges: "Ability charges", status_resist: "Status resist", souls: "Souls" };
+// editable assumptions: [path in settings.item_value, label, input step]
+const VPARAMS = [
+  ["Fight", [["combat_s", "Fight length (s per minute of play)", 1], ["shoot_share", "Share of the fight spent shooting", 0.05],
+    ["hit_rate", "Hit rate", 0.05], ["headshot_share", "Share of hits that are headshots", 0.05],
+    ["triggers_per_fight.imbued_cast", "Imbued-ability casts per fight", 0.5], ["triggers_per_fight.melee", "Melee hits per fight", 0.5],
+    ["targets", "Heroes hit by area effects", 0.25]]],
+  ["Abilities", [["cast_delay", "Delay before recasting an ability (s)", 0.5], ["default_dot_s", "Damage-over-time length if unknown (s)", 0.5],
+    ["ult_weight", "Extra ult (Refresher): × its own numbers", 0.25], ["root_weight", "Immobilize, relative to stun", 0.05]]],
+  ["Items held for part of a game", [["alive_share", "Share of time alive", 0.05], ["sell_refund", "Share of cost refunded on sale", 0.05],
+    ["item_horizon_minutes", "Minutes a stat item is held (price horizon)", 1]]],
+  ["Uptime", [["cond_uptime", "Conditional effects: share of fight active", 0.05], ["low_hp_uptime", "“Below X% health” conditions", 0.05],
+    ["close_share", "Weapon damage dealt within 15 m", 0.05], ["long_share", "Weapon damage dealt beyond 15 m", 0.05],
+    ["stack_fill", "Average fill of stacking effects", 0.05]]],
+  ["Defense and control", [["incoming_share", "Share of effective HP lost per fight", 0.05], ["ooc_efficiency", "Useful out-of-combat regen time", 0.05],
+    ["stun_dps_multiple", "1 s of stun = × the enemy's DPS", 0.25], ["slow_to_stun", "100% slow for 1 s = s of stun", 0.05],
+    ["silence_weight", "Silence, relative to stun", 0.05], ["disarm_weight", "Disarm, relative to stun", 0.05]]],
+  ["Other", [["team_amp", "Resist shred: extra share for teammates", 0.05], ["cdr_damage_share", "Spirit damage that scales with cooldown", 0.05],
+    ["duration_damage_share", "Spirit damage that scales with duration", 0.05], ["remaining_minutes", "Minutes a souls-per-minute bonus is held", 1]]],
+];
+const getPath = (o, p) => p.split(".").reduce((a, k) => a?.[k], o);
+const cap = s => s[0].toUpperCase() + s.slice(1);
+const V_LS = "dla.itemvalue.v1";       // edits are remembered per browser (a convenience; defaults live in settings.yaml)
+function vLoad() { try { return JSON.parse(localStorage.getItem(V_LS)) || {}; } catch { return {}; } }
+function vSave() { try { localStorage.setItem(V_LS, JSON.stringify({ a: state.vA })); } catch { /* storage unavailable */ } }
+// engine overrides (top-level settings keys) from the edited dotted paths; edits to settings that no
+// longer exist (remembered from an older version of the page) are dropped
+function vOverrides(edits) {
+  const ov = {};
+  for (const [p, v] of Object.entries(edits)) {
+    if (getPath(IVI.A, p) === undefined) continue;
+    const [k, sub] = p.split(".");
+    if (sub) ov[k] = { ...(ov[k] || IVI.A[k]), [sub]: v }; else ov[k] = v;
+  }
+  return ov;
+}
+const vPresets = () => ({ standard: {}, ...(IVI.A.scenarios || {}) });
+const vPresetName = () => Object.entries(vPresets()).find(([, p]) =>
+  JSON.stringify(Object.entries(p).sort()) === JSON.stringify(Object.entries(state.vA).sort()))?.[0] ?? "custom";
+let vMemo = { key: null };
+function vCompute() {
+  const hero = state.vHero === "avg" ? null : Number(state.vHero);
+  const key = JSON.stringify([hero, state.vPrice, state.vA]);
+  if (vMemo.key === key) return vMemo;
+  const opt = edits => ({ hero, pricing: state.vPrice, overrides: vOverrides(edits) });
+  const t0 = performance.now();
+  const main = IV.run(IVI, opt(state.vA));
+  const scen = {};      // presets on top of the current edits: how sensitive each ROI is
+  for (const [s, p] of Object.entries(IVI.A.scenarios || {}))
+    scen[s] = new Map(IV.run(IVI, opt({ ...state.vA, ...p })).rows.map(r => [r.item_id + "|" + r.stage, r.roi]));
+  return (vMemo = { key, main, scen, ms: performance.now() - t0 });
+}
+
+function renderValue(el) {
+  if (!IVI) { el.innerHTML = '<div class="card"><div class="empty">Run python -m dla.analyze --only value, then rebuild the dashboard.</div></div>'; return; }
+  if (!state.vInit) { const s = vLoad(); state.vA = Object.fromEntries(Object.entries(s.a || {}).filter(([p]) => getPath(IVI.A, p) !== undefined)); state.vInit = true; }
+  state.vHero ??= "avg"; state.vPrice ??= "average"; state.vStage ??= "tier"; state.vChan ??= "heal";
+  const stages = Object.keys(IVI.A.stages), scen = Object.keys(IVI.A.scenarios || {});
+  const hero = IVI.heroes.find(h => String(h.id) === String(state.vHero));
+  const units = IVI.units || {};
+  const stLabel = s => s === "tier" ? "Its tier's stage" : `${cap(s)} (${num(IVI.A.stages[s].souls)} souls)`;
+  const presetLabel = s => s === "standard" ? "Standard (settings)" : s === "custom" ? "Custom" : cap(s.replace(/_/g, " "));
+  const curPreset = vPresetName();
+  el.innerHTML = `<div class="toolbar"><span class="grp"><span class="lbl">Hero</span><span id="vhero"></span></span>
+      <span class="grp"><span class="lbl">Prices</span><div class="seg" id="vprice" role="group" aria-label="Pricing">
+        <button data-p="average" aria-pressed="${state.vPrice === "average"}" ${hero ? "" : "disabled"} title="Price this hero's stats at the average hero's rates: items that suit the kit score above 1.0×, even plain stat items">Average-hero rates</button>
+        <button data-p="own" aria-pressed="${state.vPrice === "own"}" ${hero ? "" : "disabled"} title="Calibrate on this hero: its plain stat items are 1.0×, so this ranks items within the hero">This hero's own rates</button></div></span>
+      <span class="grp"><span class="lbl">Evaluated at</span><div class="seg" id="vstage" role="group" aria-label="Game stage">
+      ${["tier", ...stages].map(s => `<button data-s="${s}" aria-pressed="${s === state.vStage}">${esc(stLabel(s))}</button>`).join("")}</div></span></div>
+    <div class="card"><details class="model" id="vdet" ${state.vOpen ? "open" : ""}><summary><h2>Model assumptions</h2><span class="sub" id="vchg"></span></summary>
+      <div class="toolbar" style="margin-top:10px"><span class="lbl">Preset</span><select id="vpreset" aria-label="Preset">
+        ${[...Object.keys(vPresets()), ...(curPreset === "custom" ? ["custom"] : [])].map(s => `<option value="${s}" ${s === curPreset ? "selected" : ""} ${s === "custom" ? "disabled" : ""}>${esc(presetLabel(s))}</option>`).join("")}</select>
+        <button class="btn" id="vreset" type="button">Reset to defaults</button></div>
+      <div class="params">${VPARAMS.map(([g, ps]) => `<h3>${esc(g)}</h3>${ps.map(([p, lab, step]) => {
+        const def = getPath(IVI.A, p), v = state.vA[p] ?? def;
+        return `<label class="pf ${p in state.vA ? "chg" : ""}" title="Default ${def}"><span>${esc(lab)}</span><input type="number" data-p="${p}" step="${step}" min="0" value="${v}"></label>`; }).join("")}`).join("")}</div>
+      <p class="note">Everything on this tab is recomputed in your browser from the item cards; edits are remembered on this device. Defaults come from settings.yaml (item_value); what each card property means is in dla/item_rules.yaml.</p>
+    </details></div>
+    <div class="toolbar">${itemFilterBar("value")}</div>
+    <div class="card"><h2>On paper vs in practice</h2><p class="why" id="vscwhy"></p>
+      <div class="toolbar">${labelToggle("value", "items")}<span class="grow"></span>${tierLegend()}</div><div id="vsc"></div></div>
+    <div class="card"><h2>Return on investment</h2><p class="why" id="vwhy"></p>
+      <div class="toolbar"><span class="legend">${VGROUPS.map(([g, , c]) => `<span class="sw" style="background:${c}"></span>${g}`).join("")}</span></div>
+      <div id="vtb"></div>
+      <p class="note">ROI = souls-equivalent value ÷ cost. For the average hero the reference items (Extra Health, Rapid Rounds, Extra Spirit, Extra Regen, …) are 1.0× by construction; for a hero at average-hero rates they move with the kit. Value = souls of plain stat items this item replaces — a second number for slot efficiency, since higher tiers concentrate value in one slot. Preset columns: ROI with that preset applied on top of the current assumptions. Unmodeled = card properties the rules do not price (ROI understates those items).</p></div>
+    <div class="card"><h2 id="vkith">Hero kits</h2><p class="why" id="vkitwhy"></p><div id="vkit"></div>
+      <p class="note">Read from each ability's data: cooldown → casts per fight (one ${IVI.A.combat_s}-s fight per minute, recast ${IVI.A.cast_delay} s after the cooldown), damage values by what they scale with — spirit power, weapon damage or melee damage — (per cast, per second × duration, per bullet hit, or build-up procs), gun buffs (extra shooting from fire rate / bullet damage bonuses), CC durations and healing. Passives (no cooldown) are never repeated by Echo Shard or Refresher and do not gain from cooldown, duration or per-cast items. “rule” rows follow dla/ability_rules.yaml (abilities the data alone gets wrong, e.g. Mina's ult growing with Love Bites); “generic” rows are the automatic reading and may be off — those are the ones to check.</p></div>
+    <div class="card"><h2>Per-channel leaderboard</h2><p class="why">Raw amounts from the item's numbers, without any pricing: which item gives the most of one thing per soul.</p>
+      <div class="toolbar"><span class="lbl">Channel</span><select id="vchan" aria-label="Channel"></select><span class="sub" id="vunit"></span></div><div id="vch"></div></div>
+    <div class="card"><h2 id="vassh">Reference hero</h2><div id="vass"></div></div>`;
+
+  combo(el.querySelector("#vhero"), [{ v: "avg", label: "Average hero", sep: true }, ...IVI.heroes.map(h => ({ v: h.id, label: h.name }))],
+    state.vHero, v => { state.vHero = v; renderValue(el); }, { label: "Hero" });
+  el.querySelector("#vprice").onclick = e => { const b = e.target.closest("button"); if (!b || b.disabled) return; state.vPrice = b.dataset.p; renderValue(el); };
+  el.querySelector("#vstage").onclick = e => { const b = e.target.closest("button"); if (!b) return; state.vStage = b.dataset.s; renderValue(el); };
+  el.querySelector("#vdet").ontoggle = e => { state.vOpen = e.target.open; };
+  el.querySelector("#vpreset").onchange = e => { state.vA = { ...vPresets()[e.target.value] }; vSave(); renderValue(el); };
+  el.querySelector("#vreset").onclick = () => { state.vA = {}; vSave(); renderValue(el); };
+  let timer;
+  const later = () => { clearTimeout(timer); timer = setTimeout(draw, 150); };
+  el.querySelectorAll("input[data-p]").forEach(inp => inp.oninput = () => {
+    const p = inp.dataset.p, v = parseFloat(inp.value), def = getPath(IVI.A, p);
+    if (!isFinite(v)) return;
+    if (Math.abs(v - def) < 1e-9) delete state.vA[p]; else state.vA[p] = v;
+    inp.closest(".pf").classList.toggle("chg", p in state.vA);
+    vSave(); later();
+  });
+  el.querySelector("#vchan").onchange = e => { state.vChan = e.target.value; draw(); };
+
+  const draw = () => {
+    const vc = vCompute(), keep = filter();
+    const nEdits = Object.keys(state.vA).length;
+    el.querySelector("#vchg").textContent = (nEdits ? `${nEdits} changed from the defaults · ` : "Defaults from settings.yaml · ") +
+      `${presetLabel(vPresetName())} · computed in ${vc.ms.toFixed(0)} ms`;
+    const fit = hero ? new Map(inScope("hero_item_fit").filter(r => String(r.hero_id) === String(hero.id)).map(r => [r.item_id, r.effect_shrunk])) : null;
+    const eff = new Map(inScope("item_effects").map(r => [r.item_id, r.effect]));
+    const base = vc.main.rows.filter(r => state.vStage === "tier" ? r.tier_stage : r.stage === state.vStage).map(r => {
+      const o = { ...r, data_effect: hero ? fit.get(r.item_id) : eff.get(r.item_id) };
+      for (const s of scen) o["roi_" + s] = vc.scen[s].get(r.item_id + "|" + r.stage);
+      return o; });
+    const all = withTiers(base, r => r.roi);
+    const chans = Object.keys(CH_LABEL).filter(c => vc.main.rows.some(r => r["q_" + c]));
+    if (!chans.includes(state.vChan)) state.vChan = chans[0];
+    el.querySelector("#vchan").innerHTML = chans.map(c => `<option value="${c}" ${c === state.vChan ? "selected" : ""}>${esc(CH_LABEL[c])}</option>`).join("");
+    const who = hero ? hero.name : "the average hero";
+    const priced = !hero ? "" : state.vPrice === "own" ? ` Prices calibrated on ${hero.name}: the plain stat items are 1.0× for ${hero.name} too, so this ranks items within the hero.`
+      : ` ${hero.name}'s stats priced at the average hero's rates, so items that suit the kit score above 1.0× — plain stat items included.`;
+    el.querySelector("#vwhy").textContent = (state.vStage === "tier"
+      ? `Each item at the game stage its tier is usually bought in (T1–T2 early, T3 mid, T4 late), for ${who}.` : `Every item evaluated for ${who} at the ${state.vStage} stage.`) + priced;
+    el.querySelector("#vscwhy").textContent = `x: stat value per soul from the item's numbers alone (1.0 = as efficient as the shop's plain stat items for the average hero). y: the item's state-adjusted win effect in matches (this scope${hero ? `, bought on ${hero.name}` : ""}). Right and low = strong numbers that are not converting; left and high = worth more than its numbers (utility, timing, or mechanics the model does not price).`;
+    const groups = r => VGROUPS.map(([g, cs, c]) => [g, cs.reduce((a, k) => a + Math.max(0, r["v_" + k] || 0), 0), c]);
+    const maxRoi = Math.max(1e-9, ...all.map(r => r.roi || 0));
+    const stack = r => { const gs = groups(r), tot = gs.reduce((a, [, v]) => a + v, 0) || 1, w = 130 * Math.min(1, Math.max(0, r.roi || 0) / maxRoi);
+      return `<span class="stack" style="width:${w.toFixed(0)}px">${gs.filter(([, v]) => v > 0).map(([g, v, c]) => `<span style="flex:${v / tot};background:${c}" title="${g}: ${num(v)} souls"></span>`).join("")}</span>`; };
+    const lines = r => chans.filter(c => r["q_" + c]).map(c => `${esc(CH_LABEL[c])}: ${num(r["q_" + c], Math.abs(r["q_" + c]) < 10 ? 2 : 0)} <span class="sub">${esc(units[c] || "")} → ${num(r["v_" + c])} souls</span>`).join("<br>");
+    const pts = all.filter(keep).filter(r => r.roi != null && r.data_effect != null);
+    const nset = new Set([...[...pts].sort((a, b) => b.roi - a.roi).slice(0, 7), ...[...pts].sort((a, b) => a.roi - b.roi).slice(0, 3),
+                          ...[...pts].sort((a, b) => b.data_effect - a.data_effect).slice(0, 4)]);
+    const plot = () => scatterPlot(el.querySelector("#vsc"), pts, {
+      x: r => r.roi, y: r => r.data_effect, label: r => r.name, tier: r => r._t, ref: 0, xRef: 1,
+      xTick: t => Number(t.toFixed(2)) + "×", yTick: ppTick, xTitle: "ROI from the item's numbers (souls of stats per soul)",
+      yTitle: hero ? `Win effect on ${hero.name}, pp` : "Win effect in matches, pp",
+      notable: r => nset.has(r), labelAll: state.labelAll.value, height: state.labelAll.value ? 640 : 460,
+      tip: r => `${badge(r._t)} <b>${esc(r.name)}</b> · ${shop(r.tier)} ${esc(r.slot || "")}<br>ROI ${num(r.roi, 2)}× · value ${num(r.value)} souls · win effect ${pp(r.data_effect)}<br>${lines(r)}${r.note ? `<br><i>${esc(r.note)}</i>` : ""}` });
+    bindLabelToggle(el, "value", plot); plot();
+    table(el.querySelector("#vtb"), all.filter(keep), [
+      TIER_COL("ROI"), { key: "name", label: "Item", l: 1, fmt: (v, r) => `${esc(v)}${r.reference ? ' <span class="sub" title="Calibration item: 1.0× for the average hero">ref</span>' : ""}` },
+      { key: "slot", label: "Slot type", l: 1 }, { key: "tier", label: "Shop", fmt: shop },
+      { key: "roi", label: "ROI", fmt: v => v == null ? "–" : num(v, 2) + "×" },
+      { key: "value", label: "Value", fmt: v => num(v), tip: "Souls of plain stat items this item's numbers are worth" },
+      { key: "main_channel", label: "Breakdown", l: 1, fmt: (v, r) => `${stack(r)}<span class="sub">${esc(CH_LABEL[v] || "")}</span>` },
+      ...scen.map(s => ({ key: "roi_" + s, label: s.replace(/_/g, " "), fmt: v => v == null ? "–" : num(v, 2) + "×",
+        tip: `ROI with the ${s.replace(/_/g, " ")} preset (${JSON.stringify(IVI.A.scenarios[s])}) on top of the current assumptions` })),
+      { key: "data_effect", label: hero ? `Win effect on ${hero.name}` : "Win effect", fmt: pp, tip: "State-adjusted win effect in matches (Items tab), for comparison" },
+      { key: "unmodeled", label: "Unmodeled / note", l: 1, fmt: (v, r) => `<span class="sub">${esc([v, r.note].filter(Boolean).join(" · "))}</span>` }],
+      { sort: "roi" });
+    const c = state.vChan;
+    el.querySelector("#vunit").textContent = units[c] ? `Unit: ${units[c]}` : "";
+    const lb = withTiers(all.filter(keep).filter(r => r["q_" + c] > 0).map(r => ({ ...r, amount: r["q_" + c], per1k: r["q_" + c] / r.cost * 1000,
+      share: r.value > 0 ? r["v_" + c] / r.value : null })), r => r.per1k);
+    table(el.querySelector("#vch"), lb, [
+      TIER_COL(`${CH_LABEL[c]} per soul`), { key: "name", label: "Item", l: 1 }, { key: "tier", label: "Shop", fmt: shop }, { key: "cost", label: "Cost", fmt: v => num(v) },
+      { key: "amount", label: CH_LABEL[c], fmt: v => num(v, v < 10 ? 2 : 0), tip: units[c] }, { key: "per1k", label: "per 1k souls", fmt: v => num(v, v < 10 ? 2 : 1), bar: 1 },
+      { key: "share", label: "Share of value", fmt: pct }], { sort: "per1k", height: "460px" });
+    // hero kits: per-ability breakdown for a hero, or every hero side by side
+    const A = { ...IVI.A, ...vOverrides(state.vA) }, refs = vc.main.meta.refs, pr = vc.main.meta.prices;
+    const kStage = state.vStage === "tier" ? "mid" : state.vStage;
+    const E = new IV.Engine(IVI, vOverrides(state.vA)), avgRef = E.ref(kStage).describe();
+    const f1 = v => num(v, 1), f2 = v => num(v, 2);
+    if (hero) {
+      const rf = refs[kStage];
+      el.querySelector("#vkith").textContent = `${hero.name}'s kit`;
+      el.querySelector("#vkitwhy").textContent = `${cap(kStage)} stage, ${num(rf.spirit_power)} spirit power. Per fight: ${num(rf.spirit_dmg_per_fight)} spirit damage from abilities (${num(rf.active_spirit_dmg_per_fight)} from cast abilities; passives do not benefit from cooldown, duration or per-cast items), +${f2(rf.spirit_dmg_per_sp)} per point of spirit power (average hero +${f2(avgRef.spirit_dmg_per_sp)}); ${num(rf.gun_dmg_per_fight)} gun damage plus ${num(rf.ability_weapon_dmg_per_fight)} weapon damage and ${num(rf.ability_melee_dmg_per_fight)} melee damage from abilities (weapon / melee items amplify these). ${f1(rf.casts_per_fight)} casts, ${f1(rf.hits_per_fight)} bullet hits and ${f2(rf.headshots_per_fight)} headshots (${f1(rf.shots_per_s)} shots/s sustained over magazine and reload; average hero ${f1(avgRef.hits_per_fight)} hits, ${f2(avgRef.headshots_per_fight)} headshots, ${f1(avgRef.casts_per_fight)} casts).`;
+      const kr = vc.main.meta.kit[kStage] || [];
+      // which ability Echo Shard / Refresher repeat (the engine's choice): best active non-ultimate / the ultimate
+      const dmg = v => v ? num(v) : "–";
+      const ROLE_TIP = { "Echo Shard": "Echo Shard repeats this ability: the best active non-ultimate", "Refresher": "Refresher repeats the ultimate",
+        "passive": "Passive: never repeated by Echo Shard / Refresher; not affected by cooldown, duration or per-cast items" };
+      table(el.querySelector("#vkit"), kr.map(r => ({ ...r, role: r.passive ? "passive" : r.ult ? "Refresher" : r.echo ? "Echo Shard" : "" })), [
+        { key: "slot", label: "#", l: 1, fmt: (v, r) => r.ult ? `${v} <span class="sub">ult</span>` : v },
+        { key: "name", label: "Ability", l: 1, fmt: (v, r) => `${esc(v)}${r.role ? ` <span class="chip" title="${esc(ROLE_TIP[r.role])}">${esc(r.role)}</span>` : ""}${r.src === "rule" ? ` <span class="sub" title="${esc(r.note || "")}">rule ⓘ</span>` : ` <span class="sub" title="Generic reading of the ability data">gen.</span>`}`,
+          tip: "Tags: which item repeats the ability. rule = described in dla/ability_rules.yaml (hover for the note); gen. = automatic reading" },
+        { key: "cd", label: "Cooldown", fmt: (v, r) => r.passive ? "passive" : num(v, 1) + " s" },
+        { key: "uses", label: "Casts / fight", fmt: (v, r) => r.passive ? "–" : f2(v) },
+        { key: "dmg_cast", label: "Spirit / cast", fmt: dmg, tip: "Spirit damage per cast at this stage's spirit power, incl. hits during the ability and area targets" },
+        { key: "coef_cast", label: "+ per SP", fmt: v => v ? f2(v) : "–", tip: "Spirit damage one cast gains per point of spirit power" },
+        { key: "wdmg_cast", label: "Weapon / cast", fmt: dmg, tip: "Weapon damage per cast: weapon-scaled ability damage, or the extra shooting of a gun buff (fire rate, bullet damage)" },
+        { key: "mdmg_cast", label: "Melee / cast", fmt: dmg, tip: "Damage that scales with the hero's melee damage" },
+        { key: "dmg_fight", label: "Spirit / fight", fmt: dmg, bar: 1 },
+        { key: "wdmg_fight", label: "Weapon / fight", fmt: dmg },
+        { key: "mdmg_fight", label: "Melee / fight", fmt: dmg },
+        { key: "cc_cast", label: "CC / cast", fmt: v => v ? num(v, 2) + " s" : "–", tip: "Stun-equivalent seconds (silence, disarm, immobilize weighted), × heroes hit" },
+        { key: "slow_cast", label: "Slow / cast", fmt: v => v ? num(v) + " %·s" : "–" },
+        { key: "heal_fight", label: "Heal / fight", fmt: v => v ? num(v) : "–" }], { sort: "slot", desc: false, height: "300px" });
+    } else {
+      el.querySelector("#vkith").textContent = "Hero kits";
+      el.querySelector("#vkitwhy").textContent = `How each hero converts spirit power and bullets into item procs, at the ${kStage} stage. Pick a hero above for the per-ability breakdown.`;
+      const kr = IVI.heroes.map(h => { const d = E.ref(kStage, h).describe();
+        return { hero: h.name, ...d, rules: h.abilities.filter(a => a.src === "rule").length }; });
+      table(el.querySelector("#vkit"), kr, [
+        { key: "hero", label: "Hero", l: 1 }, { key: "spirit_dmg_per_fight", label: "Spirit dmg / fight", fmt: v => num(v) },
+        { key: "spirit_dmg_per_sp", label: "+ per SP / fight", fmt: f2, bar: 1, tip: "What a point of spirit power is worth to this kit: drives Extra Spirit and other spirit-power items" },
+        { key: "gun_dmg_per_fight", label: "Gun dmg / fight", fmt: v => num(v) },
+        { key: "ability_weapon_dmg_per_fight", label: "Ability weapon dmg", fmt: v => v ? num(v) : "–", tip: "Weapon-scaled ability damage and gun buffs per fight: amplified by weapon damage items" },
+        { key: "ability_melee_dmg_per_fight", label: "Ability melee dmg", fmt: v => v ? num(v) : "–", tip: "Melee-scaled ability damage per fight: amplified by melee items" },
+        { key: "casts_per_fight", label: "Casts / fight", fmt: f2, tip: "Drives cast-triggered items (Mystic Burst, …)" },
+        { key: "shots_per_s", label: "Shots/s (sustained)", fmt: f2 }, { key: "hits_per_fight", label: "Hits / fight", fmt: f1 },
+        { key: "headshots_per_fight", label: "Headshots / fight", fmt: f2, tip: "Drives headshot items (Headshot Booster, Headhunter)" },
+        { key: "rules", label: "Abilities with rules", fmt: v => v || "–" }], { sort: "spirit_dmg_per_sp", height: "300px" });
+    }
+    // reference hero and prices actually used
+    el.querySelector("#vassh").textContent = hero ? `${hero.name} as the reference hero` : "Reference hero (average of all heroes)";
+    el.querySelector("#vass").innerHTML = `<div class="kv">
+      <div><b>Fight model.</b> One fight of ${A.combat_s} s per minute; ${pct(A.shoot_share)} of it shooting at heroes with ${pct(A.hit_rate)} hits (shots and casts come from the hero's gun and cooldowns);
+        ${A.triggers_per_fight.melee} melee hits per fight; area effects hit ${A.targets} heroes; conditional effects up ${pct(A.cond_uptime)} of the fight.</div>
+      <div><b>Incoming damage.</b> ${Object.entries(A.incoming_mix).map(([k, v]) => `${pct(v)} ${k}`).join(", ")}; a fight costs ${pct(A.incoming_share)} of your effective HP.
+        CC is priced from the damage a disabled enemy does not deal (1 s stun = ${A.stun_dps_multiple}× their DPS).</div>
+      ${hero ? `<div><b>${esc(hero.name)}.</b> Base ${num(hero.max_health)} HP; gun ${num(hero.dps, 1)} DPS (${num(hero.bullet, 1)} per bullet × ${hero.bps}, ${num(hero.rps, 2)} shots/s,
+        ${num(hero.clip)}-round magazine, ${num(hero.reload, 2)} s reload). Kit: see the table above.</div>` : ""}
+      <div><b>Procs.</b> An item with a cooldown that needs a trigger (headshot, cast, melee hit) fires on average every cooldown + 1/(trigger rate) seconds, and only if a trigger happens in the fight at all; headshots are ${pct(A.headshot_share)} of bullet hits.</div>
+      ${stages.map(s => `<div><b>${esc(stLabel(s))}.</b> ${refs[s].boons} boons, ${num(refs[s].hp)} HP (${num(refs[s].ehp)} effective), ${num(refs[s].spirit_power, 0)} spirit power;
+        ${num(refs[s].weapon_dmg_per_fight)} weapon / ${num(refs[s].spirit_dmg_per_fight)} spirit damage per fight. Prices${hero && state.vPrice === "average" ? " (average hero)" : ""}: 1 effective HP = ${num(pr[s].ehp, 2)}, 1 weapon damage = ${num(pr[s].weapon, 1)},
+        1 spirit damage = ${num(pr[s].spirit, 1)}, 1 s stun = ${num(pr[s].hard_cc)} souls.</div>`).join("")}
+      </div>`;
+  };
+  const filter = bindItemFilter(el, "value", draw); draw();
 }
 
 function renderFits(el) {
@@ -586,7 +1188,7 @@ function renderFits(el) {
   combo(el.querySelector("#fh"), heroList(), sel, v => { state.fitHero = v; renderFits(el); }, { label: "Hero" });
   const only = el.querySelector("#fonly");
   only.checked = !!state.fitOnly; only.onchange = e => { state.fitOnly = e.target.checked; renderFits(el); };
-  let d = withTiers(inScope("hero_item_fit").filter(r => r.hero_id === Number(sel)), r => r.effect_shrunk);
+  let d = withCoreTiers(inScope("hero_item_fit").filter(r => r.hero_id === Number(sel)), r => r.effect_shrunk);
   if (state.fitOnly) d = d.filter(r => r.underused_proven || r.underused_predicted);
   table(el.querySelector("#ftb"), d, [
     TIER_COL("effect on this hero"), { key: "name", label: "Item", l: 1 }, { key: "tier", label: "Shop", fmt: shop }, { key: "n", label: "Buys", fmt: v => num(v) },
@@ -633,12 +1235,16 @@ function renderMethod(el) {
   <p><b>Item effect.</b> A per-tick state model gives each team's win probability from souls lead, kill lead, skill and draft. Each purchase is scored against the state at the moment it was bought; an item's effect is its buyers' surplus over that prediction, relative to every other item of the same shop tier bought at the same time. This removes "winners buy more items" bias. It does not remove choice bias entirely (players buy defensive items when they are under pressure), so treat small effects with care.</p>
   <p><b>Purchase time.</b> Median minute at which the item is bought (in this scope, or by this hero).</p>
   <p><b>Counters.</b> Two independent checks: the item's effect with vs without the enemy hero (each against its own baseline of other items bought in the same kind of match), and Mantel–Haenszel kill-share odds within the same match, side and 5-minute window.</p>
+  <p><b>Core items.</b> An item bought by ≥${Math.round((META.core_buy_rate ?? 0.5) * 100)}% of a hero's players is <i>core</i> on that hero. Its win delta is ~0 by construction (it is most of its own "same tier, same time" baseline), so it gets a CORE badge instead of an S–F tier and is measured by an on-time effect: at the first stats tick after its median buy time, players who own it (or anything built from it) vs players who do not, each against the win chance their game state predicts. This is the cost of being late or skipping it.</p>
+  <p><b>Item impact.</b> For each purchase, per-minute output in the stats interval before vs after it (purchase interval skipped), minus the same change for the same hero buying another item of that tier at the same time. Hero damage is split into bullet and ability damage from the per-tick engagement stats. The game-state split uses the state model's win chance at purchase (&lt;40% behind, &gt;60% ahead). Per enemy hero (Item counters), the enemy's own damage and healing are measured the same way.</p>
+  <p><b>Counterbuy planner.</b> For each item and enemy hero, a counter strength combines the Item counters signals (extra win effect when that hero is an enemy, kill odds, protection, and the hero's damage / healing and your damage taken right after the purchase), each scaled to its spread over all item × hero pairs and expressed in pp of win effect. Against a comp, each enemy is weighted by how hard it counters your hero (Hero matchups); the item's score sums the weighted counter strengths (penalties damped), adds a bonus for items whose effect stacks across teammates, adds a little of the item's own effect on your hero, and divides by cost to a power that slides between value per slot and value per soul. The recommended set is picked one item at a time, discounting enemies already covered; core items count as free. Each enemy's counter value is discounted when the item typically arrives after that enemy's power spike (the match length where its win rate is highest relative to other heroes), and bullet / spirit defense items are scaled by the comp's damage mix (ability damage share from Playstyle profiles). Team stacking: Healbane (confirmed) and passive resist-shred items get a bonus; active timed debuffs only refresh and get none. The meta section scores the same way against the most-picked heroes, weighted by pick rate.</p>
+  <p><b>Item value.</b> Game data only, no matches: each card property is converted into effective HP, healing, damage, CC or utility for a reference hero in a ${META.item_value?.A?.combat_s ?? 15}-second fight, then priced from the shop's own single-stat items, so ROI 1.0 = as efficient as Extra Health / Rapid Rounds / Extra Spirit for the average hero. Each hero's abilities are read from the game data (cooldowns → casts per fight, damage with its spirit scaling, CC, healing; dla/ability_rules.yaml for the ones the data alone gets wrong), and its gun gives sustained shots, hits and headshots per fight, so procs like Headshot Booster fire as often as that hero can trigger them (cooldown plus the wait for the next trigger). Echo Shard and Refresher are valued as a second cast of the best regular ability / the ultimate. Pick a hero to use its HP, gun and kit: its stats are then priced at the average hero's rates, so Extra Spirit is worth more than 1.0× on a hero whose abilities scale hard with spirit power and less on a gun hero. It depends on the fight assumptions, which can be edited on the tab and are recomputed in the browser; the preset columns show how much they matter.</p>
   <p><b>Shrinkage.</b> Hero × item, counter and matchup estimates are pulled toward zero (empirical Bayes) in proportion to their noise; q-values control the false discovery rate.</p>
   <p class="note">Generated ${META.generated}. Rebuild: python -m dla.ingest · python -m dla.load · python -m dla.analyze · python -m dla.dashboard</p></div>`;
 }
 
-const R = { overview: renderOverview, heroes: renderHeroes, items: renderItems, counters: renderCounters, fits: renderFits,
-            matchups: renderMatchups, profiles: renderProfiles, method: renderMethod };
+const R = { overview: renderOverview, heroes: renderHeroes, items: renderItems, counters: renderCounters, counterbuy: renderCounterbuy, impact: renderImpact,
+            value: renderValue, fits: renderFits, matchups: renderMatchups, profiles: renderProfiles, method: renderMethod };
 function render() {
   seg.querySelectorAll("button").forEach(b => b.setAttribute("aria-pressed", b.dataset.b === state.bracket));
   if (!TABS.some(([k]) => k === state.tab)) state.tab = "overview";

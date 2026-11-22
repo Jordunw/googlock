@@ -1,0 +1,480 @@
+# How hero abilities turn into spirit damage, CC and healing for the item-value model
+# (dla/itemvalue.py, kit section). Every ability is first read generically from its data:
+#
+#   cooldown / charges        AbilityCooldown, AbilityCharges (no cooldown = passive)
+#   damage terms              properties named *Damage* / *DPS*, each with its spirit scaling:
+#                               *DPS*, *PerSecond*   x duration (the ability's *Duration, else default_dot_s)
+#                               *PerBullet*, *PerShot*, *OnHit*   per bullet hit (while active, or all fight if passive)
+#                               Min*/Max* pairs      blended 50/50
+#                               other instant values  the largest one (they are usually alternatives)
+#                             x targets (settings item_value.targets) if the ability has a *Radius*
+#   CC                        Stun/Sleep/Immobilize/Silence/Disarm durations, SlowPercent x SlowDuration;
+#                             a Stun / KnockUp / KnockBack / Pull / Immobilize the description mentions but the
+#                             data has no duration for gets the `defaults` below
+#   healing                   HealAmount-like (instant) and *HealingPerSecond*/*HPS* (x duration)
+#
+# Abilities the generic reading gets wrong are described here instead. Keys are ability keys
+# (see the Item value tab's ability table, or GameData.raw_abilities). Per ability:
+#   terms:   list replacing the generic damage terms. Each term:
+#              key:    property holding the damage (its Value + spirit Scale are used)
+#              blend:  [MinKey, MaxKey, w]  -> (1-w) x Min + w x Max  (instead of key)
+#              per:    cast (default) | second | hit | proc
+#              mult:   multiplier; a number or an expression over the ability's numeric properties
+#                      and `vars` (e.g. "BatCount * 0.7"); for per: second the default is the duration
+#              window: seconds a per-hit term is active after a cast (default: the duration; passive = whole fight)
+#              value:  a fixed amount instead of key (expression allowed), usually with `of`
+#              of:     multiply by the hero's hp | bullet (damage per shot) | wbonus_pct (weapon damage bonus, %)
+#              cd_key / cd:          proc cooldown (property name or seconds)
+#              hits_needed:          bullet hits per proc (expression allowed)
+#              on:     hit (default) | headshot -- what triggers a proc
+#              aoe:    true/false (overrides the Radius guess)
+#   gun:     list replacing the generic gun buffs (BonusFireRate / BulletDamageAmp for the duration). Each:
+#              window: seconds of boosted shooting (default AbilityDuration), fire_pct, dmg_pct: % bonuses,
+#              hit: share of the window's shots that hit a hero (default shoot_share x hit_rate), aoe: per target
+#            The value is the extra weapon damage over normal shooting in that window (a passive's buff
+#            lasts the whole fight unless it has a window).
+#   (terms also take chan: spirit | weapon | melee; by default weapon if the value scales with weapon damage,
+#    melee if it scales with melee damage, else spirit.)
+#   uses:    casts per fight instead of the cooldown-based count (0 = treat as passive; expressions allowed)
+#   targets: heroes hit by this ability's area damage and CC (default settings item_value.targets)
+#   cc:      {stun, silence, disarm, root, blind: seconds; slow: "%-s"} replacing the generic CC (expressions allowed)
+#   heal:    list of terms like `terms` replacing the generic healing (barriers count as healing)
+#   refresh: true -- casting it also refreshes the hero's other non-ultimate abilities (a second cast of each)
+#   amp:     damage amps, team buffs and damage reduction. Each: {kind: damage | defense, pct, stacks (x pct),
+#              window (s; null = whole fight), targets (heroes who benefit: 1 = just the hero, 3 = team)}.
+#              damage: + pct % of the hero's own damage per second (standing in for each ally's) x window x targets
+#              defense: pct % of the incoming damage per second x window x targets, counted as healing
+#   copy_ult: p -- the ability casts a copy of another hero's ultimate with this hero's stats: valued at the
+#              p-th quantile (0..1) of all other ultimates recomputed that way (Sinclair)
+#   (terms also take coef: an explicit spirit-power coefficient, e.g. calibrated from play)
+#   vars:    named numbers usable in expressions
+#   note:    shown in the dashboard
+defaults:                     # seconds of disable for CC the description names but the data has no duration for
+  stun_s: 1.0
+  knockup_s: 0.6
+  displace_s: 0.4             # knock-back, pull
+  immobilize_s: 1.0
+
+abilities:
+
+  # ---------------------------------------------------------------- Mina
+  ability_vampirebat_batswarm:          # Nox Nostra (ult)
+    note: "75 bats + 2 per Love Bites proc (max +50); each bat hits for Damage; assumes 6 Love Bites procs banked and 70% of bats hitting"
+    vars: {lovebite_procs: 6, bat_hit_share: 0.7}
+    terms:
+      - key: Damage
+        mult: "(BatCount + min(BonusBatsMax, BonusBatsPerProc * lovebite_procs)) * bat_hit_share"
+        aoe: false
+  ability_vampirebat_lovebites:         # Love Bites (passive)
+    note: "spirit damage on every bullet hit, plus a BonusDamage proc after 100 build-up (18.4 per shot), once per PerTargetCooldown"
+    terms:
+      - {key: MagicDamagePerBullet, per: hit}
+      - {key: BonusDamage, per: proc, cd_key: PerTargetCooldown, hits_needed: "100 / BuildUpPerShot"}
+
+  # ---------------------------------------------------------------- Wraith
+  citadel_ability_card_toss:            # Card Trick
+    note: "2 stored cards per fight, plus one card per 100 resource (4 per bullet hit); the 0.6 s cooldown is between cards"
+    uses: AbilityCharges
+    terms:
+      - {key: Damage, aoe: false}
+      - {key: Damage, per: proc, cd_key: CooldownBetweenCards, hits_needed: "ResourcePerCard / CardResourcePerBulletHit", aoe: false}
+    heal: []
+
+  # ---------------------------------------------------------------- Victor
+  ability_frank_shocktarget2:           # Pain Battery
+    note: "charged by taking damage (40% of max health per charge), not by its 2 s cooldown: ~1.5 shots per fight"
+    uses: 1.5
+
+  # ---------------------------------------------------------------- Bebop
+  citadel_ability_bebop_laser_beam:     # Hyper Beam
+    note: "11 s channel; the beam is on a hero ~40% of it"
+    terms: [{key: DPS, per: second, mult: "AbilityChannelTime * 0.4"}]
+
+  # ---------------------------------------------------------------- Mo & Krill
+  ability_burrow:                       # Burrow
+    note: "damage only during the spin at the end (SpinDuration), not the whole burrow"
+    terms: [{key: DPS, per: second, mult: SpinDuration}]
+    amp: [{kind: defense, pct: 45, window: AbilityChannelTime}]
+  # ---------------------------------------------------------------- Mirage
+  mirage_sand_phantom:                  # Djinn's Mark
+    note: "passive: procs on a bullet hit once per ProcCooldown; damage grows with stacks (~2x on average)"
+    uses: 0
+    terms: [{key: ProcDamageBase, per: proc, cd_key: ProcCooldown, hits_needed: 1, mult: 2, aoe: false}]
+
+  # ---------------------------------------------------------------- CC ultimates the data stores as lift/channel times
+  citadel_ability_self_vacuum:          # Dynamo: Singularity
+    note: "pulls and holds enemies for the whole channel; typically catches 3 heroes"
+    targets: 3
+    cc: {stun: AbilityChannelTime}
+  citadel_ability_lash_ultimate:        # Lash: Death Slam
+    note: "lifts grabbed enemies for the channel, then slams them; typically 2.5 heroes"
+    targets: 2.5
+    cc: {stun: AbilityChannelTime, slow: "SlowPercent * SlowDuration"}
+  citadel_ability_psychic_lift:         # Wraith: Telekinesis
+    note: "lifts one enemy for LiftDuration"
+    targets: 1
+    cc: {stun: LiftDuration, slow: "SlowPercent * 2"}
+
+  # ---------------------------------------------------------------- weapon abilities
+  ability_stacking_damage:              # Haze: Fixation (passive)
+    note: "every bullet hit adds a stack (3 per headshot, max 40, 6 s) worth +DamageBonusFixedPerStack weapon damage per bullet; her fire rate (and Ricochet, Sleep Dagger and Bullet Dance) builds 20-60 stacks on each target in a fight: ~35 on average"
+    vars: {avg_stacks: 35}
+    terms: [{key: DamageBonusFixedPerStack, per: hit, chan: weapon, mult: avg_stacks}]
+  ability_bullet_flurry:                # Haze: Bullet Dance (ult)
+    note: "shoots enemies in range automatically for AbilityDuration at +25% fire rate (one target per tick); assumes 90% of shots hit; WeaponDamageBonus (7) not counted"
+    gun: [{window: AbilityDuration, fire_pct: BonusFireRate, hit: 0.9}]
+  ability_werewolf_unloadgun:           # Silver: Slam Fire
+    note: "the +300% fire rate only lasts MaxShots (3) shots: valued by its Damage, not as a 5 s fire-rate buff"
+    gun: []
+  ability_power_jump:                   # Grey Talon: Rain of Arrows
+    note: "each shot splits into BulletSplitShot arrows for AbilityDuration; assumes 30% of the extra arrows hit"
+    gun: [{window: AbilityDuration, dmg_pct: "(BulletSplitShot - 1) * 100 * 0.3"}]
+
+  # ---------------------------------------------------------------- Vyper
+  ability_viper_venom:                  # Lethal Venom
+    note: "damage scales from VenomMinDamage (target at 100% health) to VenomMaxDamage (at 30%); typical targets are nearer full health, so 30% of the way"
+    terms:
+      - blend: [VenomMinDamage, VenomMaxDamage, 0.3]
+
+  ability_werewolf_transformation:      # Silver: Lycan Curse (ult)
+    note: "transforms for AbilityDuration: heals 30% of missing health (~60% missing -> ~18% of max) plus BonusHealth; claws replace the gun (valued as +BonusFireRate on her weapon damage), the tail swipe displaces; cast about once a fight when bloodlust fills; very hard to kill while transformed (not priced)"
+    uses: 0.8
+    targets: 1
+    gun: [{window: AbilityDuration, fire_pct: BonusFireRate}]
+    heal: [{value: 0.18, of: hp}, {key: BonusHealth}]
+    cc: {stun: 0.4}
+  citadel_ability_chrono_kinetic_carbine:   # Paradox: Kinetic Carbine
+    note: "one charged shot: calibrated from play to ~100 + 5 x spirit power at full charge (~600 at 25 min on a spirit build), assumed 75% charged; time-stops the target (MinSlowDuration..MaxSlowDuration)"
+    targets: 1
+    terms: [{value: 100, coef: 5.0, mult: 0.75, chan: spirit, aoe: false}]
+    cc: {stun: "MinSlowDuration + 0.7 * (MaxSlowDuration - MinSlowDuration)"}
+  drifter_darkness:                     # Drifter: Eternal Night (ult)
+    note: "blinds up to MaxTargets nearby enemies (vision cut to ~15 m) for AbilityDuration and isolates them for Bloodscent; valued as blind_weight x a stun"
+    targets: 2
+    cc: {blind: AbilityDuration}
+  citadel_ability_infinity_slash:       # Yamato: Shadow Transformation (ult)
+    note: "refreshes her other abilities (a second cast of each) and makes them 60% faster for AbilityDuration; +30% bullet/spirit resist (priced as damage reduction) and debuff immunity (not priced); heals 15% max health per kill"
+    refresh: true
+    heal: [{value: 0.15, of: hp}]
+    amp: [{kind: defense, pct: 30, window: AbilityDuration}]
+  # ---------------------------------------------------------------- from the ability descriptions
+  citadel_ability_bull_heal:            # Abrams: Siphon Life
+    note: "heals HealingFactor % of the damage dealt to heroes"
+    heal: [{key: DPS, per: second, mult: "AbilityDuration * HealingFactor / 100", aoe: true}]
+  ability_fencer_riposte:               # Apollo: Riposte
+    note: "only on a successful parry (~60% of casts): dash in, immobilize and disarm one enemy"
+    uses: 0.6
+    targets: 1
+    terms: []
+    cc: {root: StunDuration, disarm: StunDuration, slow: "SlowPercent * SlowDuration"}
+  ability_fencer_lunge:                 # Apollo: Flawless Advance
+    note: "MaxStabs lunges, between max-hold and perfect damage"
+    terms: [{blend: [MaxDamageBeforePerfect, PerfectDamage, 0.5], mult: MaxStabs, aoe: true}]
+  ability_fencer_ultimate:              # Apollo: Itani Lo Sahn (ult)
+    note: "struck enemies cannot act or heal while in slow motion (DebuffDuration), then take DelayedDamage (+60% vs half-health)"
+    terms: [{key: DelayedDamage, mult: 1.2}]
+    cc: {stun: DebuffDuration}
+  citadel_ability_hook:                 # Bebop: Grapple Arm
+    note: "pulls one enemy into Bebop"
+    targets: 1
+    cc: {stun: 0.5}
+  ability_punkgoat_goatflip:            # Billy: Rising Ram
+    note: "launches the enemy into the air with Billy"
+    targets: 1
+    cc: {stun: 0.8}
+  ability_punkgoat_tether:              # Billy: Chain Gang (ult)
+    note: "chained enemies cannot use movement abilities for AbilityDuration, are slowed when pulling, then yanked in"
+    targets: 2
+    cc: {root: AbilityDuration, stun: 0.4, slow: "MoveSpeedSlowMaxPct * AbilityDuration"}
+  ability_nano_clustergrenade:          # Calico: Gloom Bombs
+    note: "GrenadeCount bombs; extra bombs on the same enemy deal MultiHitPenaltyPercentage %"
+    terms: [{key: Damage, mult: "1 + (GrenadeCount - 1) * MultiHitPenaltyPercentage / 100 * 0.6", aoe: true}]
+  ability_nano_catform:                 # Calico: Ava
+    note: "fast, hidden movement: mobility valued as 10% of max health per cast (rough)"
+    terms: []
+    heal: [{value: 0.1, of: hp}]
+  ability_nano_shadow_pulse:            # Calico: Return to Shadows (ult)
+    note: "damages on entering and again on leaving the shadows"
+    terms: [{key: Damage, mult: 2, aoe: true}]
+  ability_unicorn_radiantblast:         # Celeste: Light Eater
+    note: "FlareDamage on cast, then Damage on every hit Celeste lands on blasted enemies for AbilityDuration"
+    terms:
+      - {key: FlareDamage, aoe: true}
+      - {key: Damage, per: hit, window: AbilityDuration}
+  ability_unicorn_prismaticguard:       # Celeste: Dazzling Trick
+    note: "a CombatBarrier; if it breaks (~half the time) it silences nearby enemies"
+    heal: [{key: CombatBarrier}]
+    cc: {silence: "DebuffDuration * 0.5"}
+  ability_unicorn_dazzlingorb:          # Celeste: Shining Wonder (ult)
+    note: "bounces between enemies (up to MaxBounces): ~3 hero hits"
+    terms: [{key: Damage, mult: 3, aoe: false}]
+  ability_deadpack_ultimate:            # Deadman Danny: Close The Deal (ult)
+    note: "grabs one enemy and flies up with them: disabled for the flight"
+    targets: 1
+    cc: {stun: 1.5}
+  citadel_ability_stomp:                # Dynamo: Kinetic Pulse
+    note: "knocks enemies up for TossDuration"
+    cc: {stun: TossDuration}
+  ability_necro_hauntingskull:          # Graves: Jar of Dead
+    note: "thrown about once a fight (charges from deaths); SkullCount deadheads each hit ~3 times"
+    uses: 1
+    terms: [{key: Damage, mult: "SkullCount * 3", aoe: false}]
+  ability_necro_fear:                   # Graves: Essence Theft (passive)
+    note: "her bullets steal up to MaxStolenAttackDamage % weapon damage per target over ShootDurationForMax: ~15% on average in a fight"
+    terms: []
+    gun: [{dmg_pct: "MaxStolenAttackDamage * 0.6", window: null}]
+  ability_immobilize_trap:              # Grey Talon: Spirit Snare
+    note: "curse: silence + disarm + slow for TetherDuration"
+    cc: {silence: TetherDuration, disarm: TetherDuration, slow: "SlowPercent * TetherDuration"}
+  ability_crackshot:                    # Holliday: Crackshot (passive proc)
+    note: "a headshot deals bonus Damage when off cooldown"
+    uses: 0
+    terms: [{key: Damage, per: proc, on: headshot, cd_key: AbilityCooldown, aoe: false}]
+    cc: {slow: "FadingSlowPercent * DebuffDuration * 0.5"}
+  ability_gravity_lasso:                # Holliday: Spirit Lasso (ult)
+    note: "pulls and stuns for AbilityDuration"
+    cc: {stun: AbilityDuration}
+  ability_afterburn:                    # Infernus: Afterburn (passive)
+    note: "each bullet hit adds BuildUpBulletPercentPerHit % build-up; at 100% the target burns (DPS) for BurnDuration, extended by further hits"
+    terms: [{key: DPS, per: proc, hits_needed: "100 / BuildUpBulletPercentPerHit", cd_key: BurnDuration, mult: "BurnDuration * 1.5", aoe: false}]
+  ability_life_drain:                   # Lady Geist: Life Drain
+    note: "drains LifeDrainPerSecond for the channel and heals as much"
+    terms: [{key: LifeDrainPerSecond, per: second, aoe: false}]
+    heal: [{key: LifeDrainPerSecond, per: second}]
+  ability_blood_shards:                 # Lady Geist: Malice
+    note: "NumBloodShards shards (~70% hit); stacks also slow and amplify her damage (not priced)"
+    terms: [{key: HealthToDamage, mult: "NumBloodShards * 0.7", aoe: false}]
+    cc: {slow: "MoveSpeedPenaltyPerStack * SlowDuration * 2"}
+    amp: [{pct: VulnerabilityPerStack, stacks: 2, window: DebuffDuration}]
+  ability_health_swap:                  # Lady Geist: Soul Exchange (ult)
+    note: "swaps health with an enemy, cast below ~20% health: she gains and the enemy loses ~60% of max health (enemy floor 30%)"
+    targets: 1
+    terms: [{value: 0.6, of: hp, aoe: false}]
+    heal: [{value: 0.6, of: hp}]
+  citadel_ability_lash_down_strike:     # Lash: Ground Strike
+    note: "plus StompDamagePerMeterPrimary per meter fallen: ~12 m"
+    terms:
+      - {key: StompDamage, aoe: true}
+      - {key: StompDamagePerMeterPrimary, mult: 12, aoe: true}
+  ability_lash_flog:                    # Lash: Flog
+    note: "heals HealPctVsHeroes % of the damage"
+    heal: [{key: Damage, mult: "HealPctVsHeroes / 100"}]
+  citadel_ability_shieldedsentry:       # McGinnis: Mini Turret
+    note: "the turret lives TurretLifetime and keeps shooting through the fight: ~9 s of damage on heroes"
+    terms: [{key: TurretDPS, per: second, mult: 9, aoe: false}]
+    heal: []
+  citadel_ability_mobile_resupply:      # McGinnis: Medicinal Specter
+    note: "heals nearby allies ExternalBonusHealthRegen per second for AbilityDuration"
+    heal: [{key: ExternalBonusHealthRegen, per: second, mult: AbilityDuration, aoe: true}]
+  citadel_ability_rocket_barrage:       # McGinnis: Heavy Barrage (ult)
+    note: "GrenadesPerSecond rockets for AbilityDuration; ~25% land on a hero"
+    terms: [{key: DamagePerRocket, mult: "GrenadesPerSecond * AbilityDuration * 0.25", aoe: true}]
+  mirage_fire_beetles:                  # Mirage: Fire Scarabs
+    note: "steals DPS for StealDuration (damage and heal); the target deals 20% less damage (not priced)"
+    terms: [{key: DPS, per: second, mult: StealDuration, aoe: false}]
+    heal: [{key: DPS, per: second, mult: StealDuration}]
+    amp: [{kind: defense, pct: 7, window: StealDuration, targets: 3}]
+  mirage_teleport:                      # Mirage: Traveler (ult)
+    note: "map-wide teleport (not priced) and a CombatBarrier on arrival"
+    heal: [{key: CombatBarrier}]
+  ability_intimidate:                   # Mo & Krill: Scorn
+    note: "heals DamageHealMult x the damage dealt to heroes"
+    heal: [{key: Damage, mult: DamageHealMult, aoe: true}]
+  ability_throw_sand:                   # Mo & Krill: Sand Blast
+    note: "disarms enemies in a cone for AbilityDuration"
+    cc: {disarm: AbilityDuration}
+  ability_ult_combo:                    # Mo & Krill: Combo (ult)
+    note: "holds one enemy stunned for the channel"
+    targets: 1
+    terms: [{key: DPS, per: second, mult: AbilityChannelTime, aoe: false}]
+    cc: {stun: AbilityChannelTime}
+  ability_nurse_fear:                   # Nurse Harrow: Lurking Terrors (ult)
+    note: "feared enemies flee for DebuffDuration and cannot use movement abilities: valued like a silence"
+    targets: 2
+    cc: {silence: DebuffDuration, slow: "SlowPercent * 2"}
+  citadel_ability_chrono_pulse_grenade: # Paradox: Pulse Grenade
+    note: "pulses every PulseInterval for AbilityDuration (~4 pulses); stacking damage amp not priced"
+    terms: [{key: PulseDamage, mult: "AbilityDuration / PulseInterval", aoe: true}]
+    amp: [{pct: DamageAmplificationPerStack, stacks: 3, window: DebuffDuration}]
+  citadel_ability_chrono_time_wall:     # Paradox: Time Wall
+    note: "time-stops enemies touching it briefly; boosts allied bullets (not priced)"
+    terms: []
+    cc: {stun: TimeScaleDuration, slow: "MovementSlowPct * 1"}
+    amp: [{pct: FriendlyBulletDamageBonus, stacks: 0.3, window: AbilityDuration, targets: 3}, {kind: defense, pct: 20, window: AbilityDuration, targets: 3}]
+  citadel_ability_chrono_swap:          # Paradox: Paradoxical Swap (ult)
+    note: "swaps places with an enemy hero (displacement)"
+    targets: 1
+    cc: {stun: SwapTime}
+  synth_barrage:                        # Pocket: Barrage
+    note: "ProjectileAmount projectiles, ~60% on heroes"
+    terms: [{key: DamagePerProjectile, mult: "ProjectileAmount * 0.6", aoe: true}]
+    amp: [{pct: AmpPercentPerStack, stacks: 2.4, window: AmpDuration}]
+  ability_ratking_scrap_grenade:        # Rat King: Scrap Grenade
+    note: "Detonations detonations, ~70% on heroes"
+    terms: [{key: DamagePerShrapnel, mult: "Detonations * 0.7", aoe: true}]
+  ability_ratking_ratnibble:            # Rat King: Rat Swarm
+    note: "-1% bullet resist per bite (~8 bites) for 4 s (whole team)"
+    terms: [{key: DamagePerBite, mult: 12, aoe: false}]
+    amp: [{pct: 8, window: 4, targets: 3}]
+  ability_ratking_ratarmor:             # Rat King: Royal Pestments
+    note: "a barrier of MaxHealthPct % of max health; reflects bullets (not priced)"
+    heal: [{value: "MaxHealthPct / 100", of: hp}]
+  ability_power_surge:                  # Seven: Power Surge
+    note: "for AbilityDuration every burst hit procs DamagePerChain, bouncing to ChainCount nearby enemies (~1.5 heroes)"
+    terms: [{key: DamagePerChain, per: hit, window: AbilityDuration, mult: 1.5}]
+  citadel_ability_shiv_dagger:          # Shiv: Serrated Knives
+    note: "a stacking bleed of BleedDPSPerStack for BleedDuration per knife"
+    terms: [{key: BleedDPSPerStack, per: second, mult: BleedDuration, aoe: false}]
+  citadel_ability_shiv_defer_damage:    # Shiv: Bloodletting
+    note: "defers DamagePctDeferred % of incoming damage over DeferredDamageDuration and clears DeferClearPct % of it on activation; used in fights that will hurt: ~12% of incoming damage avoided over the fight"
+    terms: []
+    amp: [{kind: defense, pct: 12, window: null}]
+  ability_werewolf_netshot:             # Silver: Entangling Bola
+    note: "prevents movement abilities and stamina for DebuffDuration"
+    cc: {root: DebuffDuration, slow: "SlowPercent * DebuffDuration"}
+  ability_magician_cloneturret:         # Sinclair: Spectral Assistant
+    note: "the assistant hits whenever she shoots, for AbilityDuration"
+    terms: [{key: Damage, per: hit, window: AbilityDuration}]
+  ability_magician_animalhexarea:       # Sinclair: Rabbit Hex
+    note: "hexed enemies cannot act for HexDuration and take DamageAmpPercentage % more damage"
+    cc: {stun: HexDuration}
+    amp: [{pct: DamageAmpPercentage, window: HexDuration, targets: 3}]
+  ability_magician_copyult:             # Sinclair: Audience Participation (ult)
+    note: "copies an enemy ult, cast with Sinclair's own stats (no copied passives or stacks) every AbilityCooldown s: valued as the 70th percentile of all other ultimates recomputed with his stats (the meta pick is usually copied)"
+    copy_ult: 0.7
+  ability_chessmaster_knightbuff:       # Solomon: Kingside Knight
+    note: "a CombatBarrier for an ally (double when self-cast)"
+    heal: [{key: CombatBarrier, mult: 1.5}]
+  ability_doorman_hotel:                # The Doorman: Hotel Guest (ult)
+    note: "sends one enemy to the hotel: out of the fight for most of AbilityDuration"
+    targets: 1
+    terms: [{key: Damage}, {key: LateCheckoutDamage, mult: 0.5}]
+    cc: {stun: "AbilityDuration * 0.6"}
+  ability_priest_weaponswap:            # Venator: Ira Domini (ult)
+    note: "StakeCount stakes of Damage (~70% hit), the last one adds BonusDamage"
+    terms:
+      - {key: Damage, mult: "StakeCount * 0.7", aoe: false}
+      - {key: BonusDamage, mult: 0.7, aoe: false}
+  citadel_ability_hornet_chain:         # Vindicta: Stake
+    note: "tethers enemies near the stake for ChainDuration"
+    cc: {root: ChainDuration, slow: "SlowPercent * ChainDuration"}
+  citadel_ability_hornet_snipe:         # Vindicta: Assassinate (ult)
+    note: "a charged shot; +LowHealthEnemyDamageBonus vs enemies under 50% (~40% of shots)"
+    terms:
+      - {key: Damage, aoe: false}
+      - {key: LowHealthEnemyDamageBonus, mult: 0.4, aoe: false}
+    heal: []
+  viscous_goo_grenade:                  # Viscous: Splatter
+    note: "bounces: the second and third hits deal 50% / 38%"
+    terms: [{key: Damage, mult: 1.4, aoe: true}]
+  ability_viper_debuffdagger:           # Vyper: Screwjab Dagger
+    note: "each further dagger on the same target adds DamagePerStack (~1 stack on average)"
+    terms:
+      - {key: Damage, aoe: false}
+      - {key: DamagePerStack, aoe: false}
+  ability_viper_petrifybola:            # Vyper: Petrifying Bola (ult)
+    note: "a direct hit petrifies (cannot act) for PetrifyDuration; area damage and slow around it"
+    terms:
+      - {key: Damage, aoe: true}
+      - {key: PetrifyDamage, aoe: false}
+    cc: {stun: PetrifyDuration, slow: "SlowPercent * SlowDuration"}
+  ability_warden_high_alert:            # Warden: Willpower
+    note: "a CombatBarrier and move speed"
+    heal: [{key: CombatBarrier}]
+  ability_warden_riot_protocol:         # Warden: Last Stand (ult)
+    note: "pulses for AbilityDuration and heals HealthStealPctHero % of the damage to heroes"
+    heal: [{key: PulseDPS, per: second, mult: "AbilityDuration * HealthStealPctHero / 100", aoe: true}]
+    amp: [{kind: defense, pct: 50, window: AbilityDuration}]
+  ability_bookworm_knightbarrier:       # Paige: Plot Armor
+    note: "a CombatBarrier and +BaseAttackDamagePercent weapon damage for an ally (the ally's damage is not priced)"
+    heal: [{key: CombatBarrier}]
+    amp: [{pct: BaseAttackDamagePercent, stacks: 0.5, window: AbilityDuration, targets: 1}]
+  ability_incendiary_projectile:      # Infernus: Napalm
+    amp: [{pct: 16, window: 8}]
+    note: "coated enemies take +16% damage from Infernus for 8 s"
+  ability_unicorn_luminousstrike:     # Celeste: Radiant Daggers
+    amp: [{pct: 6, stacks: 3, window: null}]
+    note: "each hit adds +6% spirit amp for 30 s (max 6): ~3 stacks held through a fight"
+  citadel_ability_hornet_sting:       # Vindicta: Crow Familiar
+    amp: [{pct: 6, window: 5, targets: 3}]
+    note: "-6% bullet and spirit resist on the target for 5 s (whole team)"
+  citadel_ability_shiv_dash:          # Shiv: Slice and Dice
+    amp: [{pct: 6, stacks: 1.5, window: 14, targets: 3}]
+    note: "-6% spirit resist per hit, stacking, for 14 s (whole team)"
+  ability_deadpack_flamethrower:      # Deadman Danny: Jettison Fuel
+    amp: [{pct: 15, window: 7, targets: 3}]
+    note: "-15% bullet resist for 7 s (whole team)"
+  ability_drifter_hunger:             # Drifter: Bloodscent (passive)
+    amp: [{pct: 15, stacks: 0.3, window: null}]
+    note: "+15% damage against low-health enemies (~30% of a fight); isolation kills add permanent weapon damage (not priced)"
+  citadel_ability_tengu_airlift:      # Ivy: Air Drop (ult)
+    amp: [{pct: 20, window: 8, targets: 2}]
+    note: "+20% outgoing damage for Ivy and the carried ally for 8 s after landing"
+  ability_ratking_standard_bearer:    # Rat King: Rule, Ratannia! (ult)
+    amp: [{kind: defense, pct: 15, window: 12, targets: 3}]
+    note: "allies near the banner take 15% less damage for 12 s, move faster and ignore slows; the banner deals weapon damage"
+  citadel_ability_tangotether:        # Ivy: Kudzu Connection
+    amp: [{pct: 10, stacks: 0.5, window: 12, targets: 1}]
+    note: "+10% fire rate (~5% damage) for the connected ally for 12 s; replicated healing is in Heal"
+  ability_nurse_adrenaline_rush:      # Nurse Harrow: Wretched Vapors
+    amp: [{kind: defense, pct: 30, window: 4, targets: 1}]
+    note: "numbs incoming damage on an ally for 4 s (the crash returns part of it): ~30% avoided"
+  ability_familiar_helpinghands:      # Rem: Lil Helpers (passive)
+    amp: [{kind: defense, pct: 12, window: 8, targets: 1}]
+    note: "helpers give an ally +12% spirit resist; trooper help not priced"
+  viscous_restorative_goo:            # Viscous: The Cube
+    amp: [{kind: defense, pct: 100, window: 3, targets: 1}]
+    note: "the cubed hero takes no damage for 3 s (plus the regen in Heal)"
+  ability_ice_dome:                   # Kelvin: Frozen Shelter (ult)
+    amp: [{kind: defense, pct: 50, window: 5, targets: 2.5}]
+    note: "allies inside the dome are shielded from outside fire and regenerate: ~50% less damage for 5 s"
+  ability_warden_crowd_control:       # Warden: Alchemical Flask
+    amp: [{kind: defense, pct: 7.5, window: 7, targets: 3}]
+    note: "-30% weapon damage on ~1.5 of 3 attacking enemies for 7 s: ~7.5% less damage for the team"
+  citadel_ability_passive_beefy:      # Abrams: Infernal Resilience (passive)
+    amp: [{kind: defense, pct: 13, window: null}]
+    note: "regenerates 13% of damage taken"
+  ability_icebeam:                    # Kelvin: Arctic Beam
+    amp: [{kind: defense, pct: 3, window: AbilityDuration, targets: 3}]
+  ability_smoke_bomb:                 # Haze: Smoke Bomb
+    heal: [{value: 0.25, of: hp}]
+    note: "mobility / escape: invisibility + sprint to escape, and clears negative effects like Dispel Magic; valued as 25% of max health per cast (rough, skill-dependent)"
+  ability_vampirebat_batblink:        # Mina: Sanguine Retreat
+    heal: [{value: 0.15, of: hp}]
+    note: "mobility / escape: untargetable flight to escape or reposition; valued as 15% of max health per cast (rough, skill-dependent)"
+  citadel_ability_void_sphere:        # Dynamo: Quantum Entanglement
+    heal: [{value: 0.15, of: hp}]
+    note: "mobility / escape: untargetable teleport (can bring allies); valued as 15% of max health per cast (rough, skill-dependent)"
+  citadel_ability_projectmind:        # Wraith: Project Mind
+    heal: [{value: 0.1, of: hp}]
+    note: "mobility / escape: teleport; valued as 10% of max health per cast (rough, skill-dependent)"
+  citadel_ability_lash:               # Lash: Grapple
+    heal: [{value: 0.1, of: hp}]
+    note: "mobility / escape: mobility, resets air jumps / dashes; valued as 10% of max health per cast (rough, skill-dependent)"
+  ability_doorman_doorway:            # The Doorman: Doorway
+    heal: [{value: 0.1, of: hp}]
+    note: "mobility / escape: team repositioning; valued as 10% of max health per cast (rough, skill-dependent)"
+  ability_icepath:                    # Kelvin: Ice Path
+    heal: [{value: 0.1, of: hp}]
+    note: "mobility / escape: team mobility, 60% slow resist; valued as 10% of max health per cast (rough, skill-dependent)"
+  drifter_shadow_mark:                # Drifter: Stalker's Mark
+    heal: [{value: 0.1, of: hp}]
+    note: "mobility / escape: teleport behind the bleeding target; valued as 10% of max health per cast (rough, skill-dependent)"
+  ability_bounce_pad:                 # Holliday: Bounce Pad
+    heal: [{value: 0.05, of: hp}]
+    note: "mobility / escape: team mobility; valued as 5% of max health per cast (rough, skill-dependent)"
+  synth_pulse:                    # Pocket: Enchanter's Satchel
+    heal: [{value: 0.15, of: hp}]
+    note: "mobility / escape: untargetable for 1.5 s; valued as 15% of max health per cast (rough, skill-dependent)"
+  ability_deadpack_rocketeer:         # Deadman Danny: Chimera Mk1
+    heal: [{value: 0.05, of: hp}]
+    note: "mobility / escape: flight; valued as 5% of max health per cast (rough, skill-dependent)"
+  synth_plasma_flux:                  # Pocket: Flying Cloak
+    heal: [{value: 0.05, of: hp}]
+    note: "mobility / escape: teleport to the cloak; valued as 5% of max health per cast (rough, skill-dependent)"
+  citadel_ability_hornet_leap:        # Vindicta: Flight
+    heal: [{value: 0.1, of: hp}]
+    note: "mobility / escape: flight out of reach; valued as 10% of max health per cast (rough, skill-dependent)"
+  ability_flame_dash:                 # Infernus: Flame Dash
+    heal: [{value: 0.05, of: hp}]
+    note: "mobility / escape: dash with slow resist; valued as 5% of max health per cast (rough, skill-dependent)"

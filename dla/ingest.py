@@ -214,9 +214,16 @@ def main():
     ap.add_argument("--settings")
     ap.add_argument("--limit", type=int, help="only extract N files (testing)")
     ap.add_argument("--no-prune", action="store_true")
+    ap.add_argument("--threads", type=int, help="override ingest.threads (e.g. 1 to retry OOM'd files)")
+    ap.add_argument("--memory", help="override ingest.memory_limit_per_file, e.g. 14GB")
     a = ap.parse_args()
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
-    errs = Ingestor(load_settings(a.settings)).run(prune=not a.no_prune, limit=a.limit)
+    ing = Ingestor(load_settings(a.settings))
+    if a.threads:
+        ing.cfg["threads"] = a.threads
+    if a.memory:
+        ing.cfg["memory_limit_per_file"] = a.memory
+    errs = ing.run(prune=not a.no_prune, limit=a.limit)
     raise SystemExit(1 if errs else 0)
 
 

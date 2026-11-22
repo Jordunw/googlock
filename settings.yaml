@@ -2,7 +2,7 @@
 # needed if deadbot ever has to be run.)
 
 paths:
-  deadlock_data: ../deadlock-data/data      # cloned deadlock-data repo
+  deadlock_data: ../deadlock-data/data # cloned deadlock-data repo
   # local store for downloaded / derived data (~20 GB raw + ~2x that in scratch during load).
   # Absolute or relative to this folder. On E: because C: is nearly full.
   data_dir: E:/dla-data
@@ -12,20 +12,20 @@ paths:
 # patch_start: ISO-8601 UTC timestamp, or "auto" = latest non-hero-lab changelog in
 # deadlock-data (date only, +1 day safety margin since Valve posts late PT).
 patch:
-  patch_start: "2026-11-05T06:00:00Z"   # "Minor Update - 11-04-2026" posted 2026-11-05 05:02 UTC
-  patch_end: null                       # null = now
+  patch_start: "2026-11-05T06:00:00Z" # "Minor Update - 11-04-2026" posted 2026-11-05 05:02 UTC
+  patch_end: null # null = now
 
 # ---- Match dump ingestion (https://deadlock-api.com/data-dumps) ------------
 ingest:
   manifest_url: https://data.deadlock-api.com/v1/manifest.json
   table: match_player
-  threads: 4                    # concurrent remote files
+  threads: 4 # concurrent remote files
   duckdb_threads_per_file: 4
-  memory_limit_per_file: 5GB    # x threads must fit in RAM (custom stats maps are memory-heavy)
+  memory_limit_per_file: 5GB # x threads must fit in RAM (custom stats maps are memory-heavy)
   # Remote filters applied before download (pushdown):
   match_modes: [Ranked, Unranked]
-  game_modes: [Normal]          # excludes StreetBrawl
-  require_team_win: true        # match_outcome = TeamWin
+  game_modes: [Normal] # excludes StreetBrawl
+  require_team_win: true # match_outcome = TeamWin
   # Columns pulled from match_player. Dotted names are nested arrays in the dump.
   columns:
     match:
@@ -80,6 +80,16 @@ ingest:
       - "stats.boss_damage"
       - "stats.creep_kills"
       - "stats.denies"
+      # per-tick output / survivability and scaling (before-vs-after purchase analysis)
+      - "stats.self_healing"
+      - "stats.damage_mitigated"
+      - "stats.damage_absorbed"
+      - "stats.heal_prevented"
+      - "stats.heal_lost"
+      - "stats.player_barriering"
+      - "stats.max_health"
+      - "stats.tech_power"
+      - "stats.weapon_power"
       # who killed whom (counter analysis)
       - "death_details.game_time_s"
       - "death_details.killer_player_slot"
@@ -108,26 +118,48 @@ ingest:
     custom_stats: >-
       map_from_entries(list_transform(map_entries(custom_user_stats_deltas),
         lambda e: struct_pack(key := e.key, value := list_sum(e.value))))
+    # per-tick hero damage split by type (sum of the engagement-distance bins). These are
+    # per-interval INCREMENTS aligned with stats.time_stamp_s (not cumulative like stats.*).
+    dmg_bullet_out_delta: >-
+      list_transform(range(1, len("stats.time_stamp_s") + 1), lambda i: list_sum(list_transform(
+        ['Outgoing Bullet Dist##10', 'Outgoing Bullet Dist##20', 'Outgoing Bullet Dist##30', 'Outgoing Bullet Dist##40',
+         'Outgoing Bullet Dist##50', 'Outgoing Bullet Dist##75', 'Outgoing Bullet Dist##100', 'Outgoing Bullet Dist##Infinite'],
+        lambda k: coalesce(custom_user_stats_deltas[k][i], 0))))
+    dmg_ability_out_delta: >-
+      list_transform(range(1, len("stats.time_stamp_s") + 1), lambda i: list_sum(list_transform(
+        ['Outgoing Ability Dist##10', 'Outgoing Ability Dist##20', 'Outgoing Ability Dist##30', 'Outgoing Ability Dist##40',
+         'Outgoing Ability Dist##50', 'Outgoing Ability Dist##75', 'Outgoing Ability Dist##100', 'Outgoing Ability Dist##Infinite'],
+        lambda k: coalesce(custom_user_stats_deltas[k][i], 0))))
+    dmg_bullet_in_delta: >-
+      list_transform(range(1, len("stats.time_stamp_s") + 1), lambda i: list_sum(list_transform(
+        ['Incoming Bullet Dist##10', 'Incoming Bullet Dist##20', 'Incoming Bullet Dist##30', 'Incoming Bullet Dist##40',
+         'Incoming Bullet Dist##50', 'Incoming Bullet Dist##75', 'Incoming Bullet Dist##100', 'Incoming Bullet Dist##Infinite'],
+        lambda k: coalesce(custom_user_stats_deltas[k][i], 0))))
+    dmg_ability_in_delta: >-
+      list_transform(range(1, len("stats.time_stamp_s") + 1), lambda i: list_sum(list_transform(
+        ['Incoming Ability Dist##10', 'Incoming Ability Dist##20', 'Incoming Ability Dist##30', 'Incoming Ability Dist##40',
+         'Incoming Ability Dist##50', 'Incoming Ability Dist##75', 'Incoming Ability Dist##100', 'Incoming Ability Dist##Infinite'],
+        lambda k: coalesce(custom_user_stats_deltas[k][i], 0))))
 
 # ---- Cleaning applied when loading the local store ---------------------------
 clean:
-  min_duration_s: 600           # drop stomps/remakes shorter than 10 min
-  drop_abandoned_matches: true  # any player with abandon_match_time_s > 0
+  min_duration_s: 600 # drop stomps/remakes shorter than 10 min
+  drop_abandoned_matches: true # any player with abandon_match_time_s > 0
   drop_low_pri: true
   drop_new_player_pool: true
-  memory_limit: 16GB          # DuckDB memory cap for the loader (spills to data/duckdb_tmp)
-  threads: 8                  # fewer threads = less memory held by in-flight nested row groups
+  memory_limit: 16GB # DuckDB memory cap for the loader (spills to data/duckdb_tmp)
+  threads: 8 # fewer threads = less memory held by in-flight nested row groups
 
 # ---- Skill / rank brackets ----------------------------------------------------
 # Badge = tier*10 + subrank. Tiers: 0 Obscurus(placement) 1 Initiate 2 Seeker 3 Acolyte
 # 4 Sentinel 5 Mystic 6 Ritualist 7 Emissary 8 Oracle 9 Phantom 10 Ascendant 11 Eternus
 skill:
-  brackets:                       # name: [min_tier, max_tier] inclusive
+  brackets: # name: [min_tier, max_tier] inclusive
     Sentinel-Ritualist: [4, 6]
     Emissary-Phantom: [7, 9]
     Ascendant+: [10, 11]
   focus_bracket: Sentinel-Ritualist
-  exclude_below_tier: 4           # Initiate-Acolyte excluded everywhere (new players + smurfs)
+  exclude_below_tier: 4 # Initiate-Acolyte excluded everywhere (new players + smurfs)
   # Unranked matches have no badge; a match's skill is estimated from the ranked badges of
   # its players (from their own ranked games this window). Need this many known players:
   # Ranked matchmaking is tight: bracket from 3 random players agrees with all 12 in 96% of
@@ -149,28 +181,186 @@ analysis:
   # matches to bound memory/disk. Hero stages always use every match.
   heavy_sample_fraction: 0.4
   heroes:
-    min_games: 2000             # below this a hero is flagged low_sample in a scope
-    min_pair_games: 1000        # counters / synergies
-    l2: 1.0                     # ridge penalty of the hero-strength logistic model
+    min_games: 2000 # below this a hero is flagged low_sample in a scope
+    min_pair_games: 1000 # counters / synergies
+    l2: 1.0 # ridge penalty of the hero-strength logistic model
   items:
-    max_tick_min: 60            # state ticks (stats snapshots: 3-min to 15:00, then 5-min) up to here; later buys use the last
+    max_tick_min: 60 # state ticks (stats snapshots: 3-min to 15:00, then 5-min) up to here; later buys use the last
     state_model_sample_matches: 400000
     min_purchases: 2000
     min_hero_purchases: 300
+    # Bought by at least this share of a hero's players = "core" on that hero. Core items
+    # get their own tier and an on-time-vs-late landmark effect instead of the win delta
+    # (which is ~0 by construction when the item is most of its own baseline).
+    core_buy_rate: 0.5
   counters:
-    min_tier: 1                 # lowest shop tier considered as a counter-buy (1 = all items)
-    min_purchases: 1000         # item x enemy-hero purchases for the win signal
-    time_bucket_s: 300          # strata width for the kill-share analysis
+    min_tier: 1 # lowest shop tier considered as a counter-buy (1 = all items)
+    min_purchases: 1000 # item x enemy-hero purchases for the win signal
+    time_bucket_s: 300 # strata width for the kill-share analysis
     min_kill_events: 200
+  output: # before-vs-after purchase output change (dla/analysis/output.py)
+    sample_fraction: 0.15 # absolute share of matches (<= heavy_sample_fraction)
+    min_purchases: 300
+    min_hero_purchases: 150
+    min_enemy_purchases: 300
+    enemy_sample_fraction: 0.10 # own match sample for the per-enemy pass (purchase x enemy join is memory-heavy)
   fits:
-    min_heroes_for_fit: 10      # heroes with purchases needed to learn an item's profile fit
+    min_heroes_for_fit: 10 # heroes with purchases needed to learn an item's profile fit
     ridge_alpha: 10.0
-    min_effect: 0.01            # 1 win-rate point counts as a meaningful effect
-    rare_buy_rate: 0.05         # "rarely bought": under 5% of the hero's players buy it ...
-    rare_buy_pct: 0.334         # ... or bottom third of heroes by buy rate for that item
+    min_effect: 0.01 # 1 win-rate point counts as a meaningful effect
+    rare_buy_rate: 0.05 # "rarely bought": under 5% of the hero's players buy it ...
+    rare_buy_pct: 0.334 # ... or bottom third of heroes by buy rate for that item
+
+# ---- Item value from game data only (python -m dla.itemvalue) ----------------
+# No match data: a reference hero per stage, one fight of combat_s seconds per minute of
+# play; item properties -> channels (dla/item_rules.yaml) -> souls via the calibration
+# items. Everything below is an assumption you can tune; the dashboard shows each item's
+# breakdown and how its ROI moves under the scenarios at the bottom.
+item_value:
+  combat_s: 15 # seconds of fighting per minute of play (one fight per minute)
+  shoot_share: 0.6 # share of a fight spent shooting at a hero
+  hit_rate: 0.4 # share of shots that hit a hero
+  triggers_per_fight: # actions per fight that are not derived from the hero (casts and hits are)
+    imbued_cast: 1.5 # casts of the ability an item is imbued into
+    melee: 2 # (heavy) melee hits on heroes
+  headshot_share: 0.2 # share of bullet hits that are headshots (headshots/s = hits/s x this)
+  cast_delay: 2.0 # s an ability waits after coming off cooldown before it is recast
+  default_dot_s: 3.0 # duration of a damage-over-time ability whose data has none
+  ult_weight: 2.0 # an extra ult cast (Refresher) is worth this x its own numbers (teamfight value)
+  root_weight: 0.5 # value of 1 s of immobilize relative to a stun
+  blind_weight: 0.3 # value of 1 s of blind (vision cut to ~15 m, e.g. Eternal Night) relative to a stun
+  alive_share: 0.85 # share of time alive (Golden Goose Egg pays only while alive)
+  sell_refund: 0.5 # share of cost returned when an item is sold
+  item_horizon_minutes:
+    25 # minutes a stat item is held: prices are for holding it this long; an item held
+    # for less (held_minutes in item_rules.yaml) gets that share of its stat value
+  buildup_ref_s:
+    4.0 # build-up items (Toxic Bullets, Silencer, ...): s of shooting to proc = this / BuildUpPerShot,
+    # the same for every hero (the game scales build-up per bullet by fire rate)
+  cond_uptime: 0.6 # "conditionally applied" on-hit / in-combat effects without a cooldown
+  low_hp_uptime: 0.3 # "below X% health" (self or target) conditions
+  close_share: 0.5 # share of weapon damage dealt within 15 m
+  long_share: 0.3 # ... beyond 15 m
+  targets: 1.5 # heroes hit by area / per-hero-stacking effects
+  stack_fill: 0.5 # average fill of stacking effects (share of MaxStacks)
+  team_amp: 0.5 # your resist shred also amplifies teammates: +50% of your own gain
+  incoming_mix: { bullet: 0.5, spirit: 0.4, melee: 0.1 }
+  incoming_share: 0.7 # a fight costs 70% of your effective HP (sets incoming DPS)
+  ooc_efficiency: 0.7 # share of out-of-combat time in which regen is not wasted at full HP (lane chip damage)
+  cdr_damage_share: 0.8 # share of spirit damage that scales with cooldown reduction
+  duration_damage_share: 0.3 # ... with ability duration
+  stun_dps_multiple: 2.0 # 1 s of stun ~ 2x the damage the stunned enemy would deal in 1 s
+  slow_to_stun: 0.5 # a 100% slow for 1 s ~ 0.5 s of stun
+  silence_weight: 0.7 # value of 1 s of silence / disarm relative to a stun
+  disarm_weight: 0.5
+  remaining_minutes: 15 # souls-per-minute items: minutes the bonus is held
+  stage_by_tier: { 1: early, 2: early, 3: mid, 4: late } # stage used for the headline ROI
+  stages: # reference hero; boons/HP/DPS/spirit scaling come from game data
+    early:
+      {
+        souls: 5000,
+        item_hp: 150,
+        item_spirit: 10,
+        bullet_resist: 0.05,
+        spirit_resist: 0.05,
+        item_weapon_pct: 15,
+        melee_dmg_per_fight: 120,
+        heal_per_fight: 150,
+        enemy_heal_per_fight: 150,
+        item_duration_pct: 0,
+        item_range_pct: 0,
+        cd_item_value: 800,
+      }
+    mid:
+      {
+        souls: 15000,
+        item_hp: 400,
+        item_spirit: 35,
+        bullet_resist: 0.15,
+        spirit_resist: 0.15,
+        item_weapon_pct: 40,
+        melee_dmg_per_fight: 200,
+        heal_per_fight: 300,
+        enemy_heal_per_fight: 300,
+        item_duration_pct: 10,
+        item_range_pct: 10,
+        cd_item_value: 3200,
+      }
+    late:
+      {
+        souls: 32000,
+        item_hp: 900,
+        item_spirit: 80,
+        bullet_resist: 0.25,
+        spirit_resist: 0.25,
+        item_weapon_pct: 70,
+        melee_dmg_per_fight: 300,
+        heal_per_fight: 500,
+        enemy_heal_per_fight: 500,
+        item_duration_pct: 25,
+        item_range_pct: 20,
+        cd_item_value: 9600,
+      }
+    # item_duration_pct / item_range_pct: bonus the build already has (duration, range, CDR and resists stack
+    #   diminishingly: 1 - (1-a)(1-b)..., so a new +x% adds x x (1 - existing))
+    # cd_item_value: souls of the build whose value comes from item cooldowns (procs and actives, not the
+    #   charge-up items): what item cooldown reduction (Transcendent Cooldown) speeds up
+  # Channel prices, solved in this order: the item's cost minus its already-priced channels,
+  # divided by its amount of the named channel. Reference items score ROI 1.0 by construction.
+  # heal is priced like ehp; hard_cc / slow from stun_dps_multiple; heal_denied = mean damage price.
+  calibrate:
+    - [ehp, upgrade_health] # Extra Health
+    - [weapon, upgrade_rapid_rounds] # Rapid Rounds
+    - [spirit, upgrade_improved_spirit] # Extra Spirit
+    - [recovery, upgrade_endurance] # Extra Regen
+    - [clip, upgrade_clip_size] # Extended Magazine
+    - [bullet_speed, upgrade_high_velocity_mag] # High-Velocity Rounds
+    - [sprint, upgrade_sprint_booster] # Sprint Boots
+    - [stamina, upgrade_improved_stamina] # Extra Stamina
+    - [range, upgrade_magic_reach] # Mystic Expansion
+    - [charges, upgrade_extra_charge] # Extra Charge
+    - [status_resist, upgrade_debuff_reducer] # Debuff Reducer
+    - [move, upgrade_cardio_calibrator] # Enduring Speed
+    - [melee, upgrade_melee_charge] # Melee Charge
+  fallback_prices: { move: 300, melee: 1.0, items: 1.0 }
+  # Sensitivity: headline ROI recomputed with these overrides (shallow merge into item_value)
+  scenarios:
+    short_fights: { combat_s: 8 }
+    long_fights: { combat_s: 30 }
+    teamfight: { targets: 3.0, combat_s: 25 }
+
+# ---- Counterbuy planner (dashboard tab; every number is adjustable on the page) ----
+counterbuy:
+  # how strongly an item counters one enemy hero: these signals from the Item counters tab, each
+  # standardized over all item x hero pairs, weighted, and expressed in pp of win effect
+  weights:
+    delta: 1.0 # extra win effect when that hero is an enemy
+    kill_odds: 0.5 # holders kill that hero disproportionately often
+    protection: 0.5 # holders die to that hero less often
+    enemy_dmg: 0.4 # that hero's damage output drops after the purchase
+    enemy_heal: 0.2 # ... its healing drops
+    dmg_taken: 0.3 # the buyer takes less damage from that hero
+  threat_per_sd: 0.5 # weight of an enemy = 1 + this x (how hard it counters your hero, in SDs of matchups)
+  negative_factor: 0.5 # items that are bad against an enemy count this share of the penalty
+  fit_weight:
+    0.25 # the item's own effect on your hero, added once (counters are ~0.1-1 pp per
+    # enemy, items' general effects 1-3 pp: keep this low so counters lead)
+  soul_vs_slot: 0.5 # 0 = value per slot, 1 = value per soul (score / (cost / 3200) ^ this)
+  slots: 2 # counter slots for the recommended set (1-3)
+  meta_heroes: 12 # "meta" = the most-picked heroes in the scope
+  # Team stacking: an item whose effect stacks when several teammates buy it is worth more as a counter.
+  # There is no public data on this; only items known (or strongly believed) to stack get a bonus:
+  team_stacking: # item key -> bonus (share of its counter value), confirmed in play
+    upgrade_healbane: 0.3 # the anti-heal stacks per teammate who procs it
+  shred_stacking_bonus: 0.1 # passive resist-shred items (headshot debuffs included): believed to stack across buyers
+  # active items with a timed debuff only refresh its timer when a teammate uses theirs: tagged, no weight
+  damage_mix_weight:
+    1.0 # bullet / spirit defense items: x (1 + this x how much more of that damage type
+    #   the enemy comp deals than an average comp, relative); clamped to 0.5..1.8
+  timing_tau_min: 10 # a counter bought N min after the enemy's power spike keeps 1 / (1 + N / this)
 
 # ---- Game-data validity rules (deadlock-data) --------------------------------
 gamedata:
-  street_brawl_price: 9999      # items at this cost are Street-Brawl only
+  street_brawl_price: 9999 # items at this cost are Street-Brawl only
   exclude_disabled_items: true
   exclude_disabled_heroes: true

@@ -8,7 +8,7 @@ patch, from deadlock-api match dumps + deadlock-data game files.
 ```powershell
 .\.venv\Scripts\python -m dla.ingest      # pull new matches for the patch window (incremental)
 .\.venv\Scripts\python -m dla.load        # clean tables -> data/clean
-.\.venv\Scripts\python -m dla.analyze     # models -> data/results   (--only heroes,items,counters,fits)
+.\.venv\Scripts\python -m dla.analyze     # models -> data/results   (--only heroes,items,counters,output,fits,value; output_enemy reruns just the per-enemy part)
 .\.venv\Scripts\python -m dla.dashboard   # -> data/dashboard/index.html
 ```
 
@@ -32,6 +32,11 @@ columns or filters makes `ingest` re-extract automatically.
 | `dla/analysis/items.py` | game-state model and state-adjusted item / hero×item effects |
 | `dla/analysis/counters.py` | item vs enemy hero: win-effect delta + kill-share odds |
 | `dla/analysis/fits.py` | playstyle profiles and profile-predicted hero×item fit, underused flags |
+| `dla/analysis/output.py` | output change after a purchase (damage dealt/taken, healing, mitigation, deaths), win effect by game state at purchase, enemy output change per enemy hero |
+| `dla/itemvalue.py` | item value from game data only: card properties -> effective HP / healing / damage / CC -> souls, ROI vs the shop's stat items |
+| `dla/itemvalue.js` | the same engine for the browser: the Item value tab recomputes live (hero picker, editable assumptions); keep in step with itemvalue.py |
+| `dla/ability_rules.yaml` | how hero abilities become spirit damage / CC / healing per fight for the item-value kit model: generic reading + per-ability rules where the data alone is wrong (Mina's ult, Vyper's Venom, ...) |
+| `dla/item_rules.yaml` | what each item-card property means (generic) + per-item overrides for mechanics the card does not express |
 | `dla/dashboard.py` | self-contained HTML dashboard |
 
 ## Data notes
@@ -46,3 +51,15 @@ columns or filters makes `ingest` re-extract automatically.
 - Corrupted items (temporary, pre-window) and Street Brawl item enhancements (`PropertyUpgrades`) are ignored.
 - In the dump, `flags=1` marks an item consumed as a component of an upgrade (its sell time equals
   the parent's buy time in 99% of cases); a sell time with `flags=0` is a real sale.
+- Core items (bought by >= `analysis.items.core_buy_rate` of a hero's players) get a CORE badge and an
+  on-time landmark effect instead of the win delta, which is ~0 for them by construction.
+- Per-tick damage is split into bullet / ability from the engagement-distance custom stats (per-interval
+  increments, `dmg_*_delta` columns). Crowd control applied is not recorded anywhere in the dump.
+- Counterbuy planner (dashboard tab): computed in the page from the item-counter, matchup and hero-item tables;
+  defaults and the team-stacking item list are in `settings.yaml` (`counterbuy`), all adjustable on the tab.
+- Item value (`python -m dla.itemvalue` or `--only value`) needs no match data; tune `settings.yaml`/`item_value`.
+  It writes `item_value_inputs.json` (item cards, per-hero stats, rules, defaults), which the dashboard embeds and
+  `itemvalue.js` evaluates live. After changing either engine run `python -m dla.itemvalue --check` (needs node):
+  it compares every number of the two. Each hero's kit (casts, spirit damage and its scaling, CC) is read from
+  its abilities; the Item value tab lists it per ability, and `dla/ability_rules.yaml` corrects abilities the
+  generic reading gets wrong. Rule/settings edits: rerun the value stage, then `dla.dashboard`.
